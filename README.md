@@ -2,30 +2,36 @@
 
 ## Overview
 
-Build an end-to-end data engineering pipeline that ingests real-time e-commerce order events via Kafka, processes them with PySpark, and orchestrates the entire workflow using Apache Airflow. This project ties together all concepts from **Weeks 1–4** of the Data Engineering curriculum.
+Build an end-to-end data engineering pipeline that ingests real-time e-commerce order events via Kafka, processes them with PySpark, applies data quality validations, and orchestrates the entire workflow using Apache Airflow.
 
 ---
 
 ## Business Scenario
 
-An e-commerce company wants to:
+Amazon, a global multi-channel e-commerce retailer, wants to:
 
-1. **Stream** order events (new orders, cancellations, returns) in real time.
-2. **Process** the raw events to compute hourly sales aggregations, top-selling products, and regional revenue breakdowns.
-3. **Persist** both raw and transformed data to storage (local filesystem or S3).
-4. **Orchestrate** the batch and streaming jobs on a daily schedule with retry and alerting.
+1. **Stream** real-time orders, payments, returns, and cancellations across its website, mobile app, and international marketplaces.
+2. **Process** the raw events to compute operational and business KPIs in near real-time, including:
+    - Gross Merchandise Value
+    - Net revenue
+    - Top-selling products per category and region
+    - Return rate and cancellation rate
+    - Customer segment revenue (e.g., Prime vs. Non-Prime)
+    - Average basket size per region
+4. **Persist** both raw and transformed data to storage (local filesystem or S3) for analytics and reporting.
+5. **Orchestrate** and monitor the full pipeline with retry policies, SLA alerts, and data validation.
 
 ---
 
 ## Architecture
 
 ```
-┌──────────────┐       ┌─────────────┐       ┌─────────────────────┐
-│  Order Event │       │             │       │  PySpark Streaming   │
-│  Simulator   │──────▶│   Kafka     │──────▶│  Consumer / ETL      │
-│  (Producer)  │       │  (Topic:    │       │  (Spark Structured   │
-│              │       │  orders)    │       │   Streaming)          │
-└──────────────┘       └─────────────┘       └──────────┬────────────┘
+┌──────────────┐       ┌─────────────────┐       ┌─────────────────────┐
+│ Amazon Event │       │    Kafka        │       │  PySpark Streaming   │
+│  Simulator   │──────▶│  (Topic:       │──────▶│  Consumer / ETL      │
+│  (Producer)  │       │  order_events   │       │  (Spark Structured   │
+│              │       │  payment_events │       │   Streaming)          │
+└──────────────┘       └─────────────────┘       └──────────┬────────────┘
                                                         │
                                                         ▼
                                               ┌─────────────────────┐
@@ -71,38 +77,45 @@ An e-commerce company wants to:
 
 ### Module 1 — Kafka Producer (Week 3)
 
-**Goal:** Simulate a stream of order events.
+**Goal:** Simulate Amazon-like order and payment events.
 
-- Create a Kafka topic named `ecommerce_orders`.
+- Create a Kafka topics named `order_events` and `payment_events`.
 - Write a Python Kafka producer (`producer.py`) that generates JSON order events:
   ```json
   {
+    "event_id": "EVT-90001",
+    "event_type": "ORDER_CREATED",
     "order_id": "ORD-10042",
     "customer_id": "CUST-301",
+    "customer_segment": "PRIME",
     "product_id": "PROD-88",
     "product_name": "Wireless Mouse",
     "category": "Electronics",
     "quantity": 2,
     "unit_price": 29.99,
-    "order_status": "NEW",
+    "discount": 5.00,
+    "payment_method": "CREDIT_CARD",
+    "shipping_type": "PRIME_EXPRESS",
     "region": "US-East",
     "timestamp": "2026-02-19T10:32:00Z"
   }
   ```
-- Use `order_status` values: `NEW`, `CANCELLED`, `RETURNED`.
+- Use `event_type` values: `ORDER_CREATED`, `ORDER_CANCELLED`, `ORDER_RETURNED`, `PAYMENT_COMPLETED`, `PAYMENT_FAILED`.
 - Produce at least **500 events** with randomized data using the `Faker` library.
 
 ---
 
 ### Module 2 — Spark Streaming Consumer (Week 3)
 
-**Goal:** Consume and persist the raw Kafka stream.
+**Goal:** Consume and persist the raw Kafka stream with schema enforcement, deduplication, and bad record handling.
 
 - Write a PySpark Structured Streaming job (`stream_consumer.py`).
-- Read from the `ecommerce_orders` Kafka topic.
+- Read from the`order_events` and `payment_events` Kafka topic.
 - Deserialize JSON messages into a Spark DataFrame.
+- Implement:
+  - Deduplication by event_id
+  - Malformed record handling → save to `data/bad_records/`
 - Write the raw data to a **Parquet** sink partitioned by `date` (derived from `timestamp`).
-- Implement a 1-minute micro-batch trigger.
 
 ---
 
@@ -116,6 +129,7 @@ An e-commerce company wants to:
 - Use RDD transformations (`map`, `filter`, `reduceByKey`) to:
   - Filter out `CANCELLED` orders.
   - Compute total revenue per `product_id` using key-value pair RDDs.
+  - Track malformed/bad records using accumulators.
 - Save the result as a text file.
 
 #### 3B — DataFrame / Spark SQL Processing (Week 2)
@@ -125,7 +139,8 @@ An e-commerce company wants to:
   1. **Hourly Sales Summary** — Group by hour, compute `total_orders`, `total_revenue`, `avg_order_value`.
   2. **Top 10 Products** — Rank products by total quantity sold using Spark SQL window functions.
   3. **Regional Revenue** — Join orders with a static `regions.csv` reference dataset to enrich region names, then aggregate revenue by region.
-  4. **Order Status Breakdown** — Pivot on `order_status` to get counts per category.
+  4. **Customer Segment KPIs** — revenue, average basket size
+  5. **Order Status Breakdown** — Pivot on `order_status` to get counts per category. Return & Cancellation Rates
 - Write each output to Parquet, partitioned and bucketed where appropriate.
 - Use **caching** on the base DataFrame to speed up multiple downstream transformations.
 
@@ -188,6 +203,7 @@ project1/
 ├── data/
 │   ├── regions.csv
 │   ├── raw/                  # Raw Parquet output from streaming
+│   ├── bad_records/  
 │   └── transformed/          # Aggregated Parquet output from batch ETL
 ├── kafka/
 │   └── producer.py
