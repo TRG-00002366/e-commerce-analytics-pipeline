@@ -1,8 +1,8 @@
-# Project 1: Real-Time E-Commerce Order Analytics Pipeline
+# Project 1: Real-Time Amazon Order Analytics Pipeline
 
 ## Overview
 
-Build an end-to-end data engineering pipeline that ingests real-time e-commerce order events via Kafka, processes them with PySpark, applies data quality validations, and orchestrates the entire workflow using Apache Airflow.
+Build an end-to-end data engineering pipeline that ingests real-time Amazon order events via Kafka, processes them with PySpark, applies data quality validations, and orchestrates the entire workflow using Apache Airflow.
 
 ---
 

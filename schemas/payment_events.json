@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "description": "Unique identifier for the event"
+    },
+    "event_type": {
+      "type": "string",
+      "enum": ["PAYMENT_COMPLETED", "PAYMENT_FAILED"],
+      "description": "Type of payment event"
+    },
+    "order_id": {
+      "type": "string",
+      "description": "Associated order identifier"
+    },
+    "customer_id": {
+      "type": "string",
+      "description": "Unique customer identifier"
+    },
+    "payment_method": {
+      "type": "string",
+      "enum": ["CREDIT_CARD", "DEBIT_CARD", "PAYPAL", "GIFT_CARD"],
+      "description": "Payment method used"
+    },
+    "amount": {
+      "type": "number",
+      "minimum": 0.01,
+      "description": "Payment amount"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["COMPLETED", "FAILED"],
+      "description": "Payment status"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Event timestamp in ISO format"
+    }
+  },
+  "required": [
+    "event_id",
+    "event_type",
+    "order_id",
+    "customer_id",
+    "payment_method",
+    "amount",
+    "status",
+    "timestamp"
+  ]
+}

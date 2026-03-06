@@ -1,0 +1,34 @@
+# Application configuration
+app:
+  name: "e-commerce-analytics-pipeline"
+  version: "1.0.0"
+  environment: "development"  # development, staging, production
+
+# Data paths
+data:
+  raw_path: "data/raw/"
+  transformed_path: "data/transformed/"
+  bad_records_path: "data/bad_records/"
+  regions_file: "data/regions.csv"
+
+# Kafka settings (for future use)
+kafka:
+  bootstrap_servers: ["localhost:9092"]
+  topics:
+    order_events: "order_events"
+    payment_events: "payment_events"
+  producer_config:
+    retries: 3
+    batch_size: 16384
+    linger_ms: 5
+
+# Logging
+logging:
+  level: "INFO"
+  format: "%(asctime)s | %(levelname)s | %(name)s | %(message)s"
+  file: "logs/app.log"
+
+# Other settings
+misc:
+  faker_locale: "en_US"
+  batch_size: 500

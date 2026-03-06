@@ -1,0 +1,30 @@
+# Spark configuration
+spark:
+  app_name: "ECommerceAnalyticsPipeline"
+  master: "local[*]"  # Use "yarn" or "k8s" for cluster
+  config:
+    spark.sql.adaptive.enabled: true
+    spark.sql.adaptive.coalescePartitions.enabled: true
+    spark.serializer: "org.apache.spark.serializer.KryoSerializer"
+    spark.sql.shuffle.partitions: 200
+    spark.default.parallelism: 200
+    spark.memory.fraction: 0.8
+    spark.memory.storageFraction: 0.3
+
+# EMR-specific settings (for future use)
+emr:
+  release: "emr-7.0.0"
+  instance_types:
+    master: "m5.xlarge"
+    core: "r5.large"
+    core_count: 2
+
+# Job-specific settings
+jobs:
+  batch_etl:
+    cache_enabled: true
+    repartition_factor: 10
+  streaming:
+    checkpoint_location: "data/checkpoints/"
+    output_mode: "append"
+    trigger_interval: "1 minute"
