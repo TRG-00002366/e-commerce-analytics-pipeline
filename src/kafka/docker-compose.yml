@@ -1,4 +1,7 @@
+version: '3.8'
+
 services:
+  # ZooKeeper - Cluster coordinator
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
     hostname: zookeeper
@@ -14,6 +17,7 @@ services:
       timeout: 5s
       retries: 5
 
+  # Kafka Broker
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     hostname: kafka
@@ -40,6 +44,7 @@ services:
       timeout: 10s
       retries: 5
 
+  # Kafka UI - Web interface for monitoring
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
     container_name: kafka-ui
@@ -51,38 +56,6 @@ services:
       KAFKA_CLUSTERS_0_NAME: local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
       KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
-
-  airflow:
-    build:
-      context: ../..
-      dockerfile: Dockerfile
-    container_name: airflow
-    environment:
-      - AIRFLOW__CORE__EXECUTOR=SequentialExecutor
-      - AIRFLOW__CORE__FERNET_KEY=unsafe_fernet_key
-      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=sqlite:////opt/airflow/airflow.db
-      - AIRFLOW__CORE__LOAD_EXAMPLES=False
-      - AIRFLOW__TRIGGERER__DEFAULT_CAPACITY=100
-      - AIRFLOW__CORE__DAGS_FOLDER=/opt/airflow/src/airflow
-      - AIRFLOW__WEBSERVER__EXPOSE_CONFIG=True
-    volumes:
-      - ../../../src:/opt/airflow/src:ro
-      - ../../../schemas:/opt/airflow/schemas:ro
-      - ../../../data:/opt/airflow/data
-      - ../../../config:/opt/airflow/config:ro
-      - airflow-logs:/opt/airflow/logs
-    ports:
-      - "8081:8080"
-    depends_on:
-      - kafka
-    user: airflow
-    entrypoint: /bin/bash  
-    command:
-      - -c
-      - "airflow db upgrade 2>&1 ; airflow webserver --bind 0.0.0.0 --port 8080 --workers 1"
-
-volumes:
-  airflow-logs:
 
 networks:
   default:
