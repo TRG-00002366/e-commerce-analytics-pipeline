@@ -1,18 +1,42 @@
-"""
-Purpose:
-    Implements deduplication logic for streaming Amazon order and payment events.
+from pyspark.sql import DataFrame
+from pyspark.sql.functions import col
+from src.util.logging import get_logger
 
-Responsibilities:
-    - Identify and remove duplicate events based on event_id.
-    - Integrate with Spark Structured Streaming jobs.
-    - Optionally write duplicates to bad_records/ for auditing.
+logger = get_logger(__name__)
 
-Important Behavior:
-    - Deduplication is applied using watermarking and stateful streaming operations.
-    - Supports multiple topics (order_events, payment_events).
-    - Works in conjunction with stream_consumer.py.
+def deduplicate_events(
+    df: DataFrame,
+    event_id_col: str = "event_id",
+    timestamp_col: str = "timestamp",
+    watermark_delay: str = "10 minutes"
+):
+    """
+    Deduplicates streaming events based on event_id using watermark.
 
-Design Notes:
-    - Separate module to keep deduplication logic reusable and isolated.
-    - Designed to handle high-throughput streams efficiently.
-"""
+    Streaming-safe:
+    - Returns deduplicated events.
+    - Duplicate tracking is not supported directly in streaming (cannot use LeftAnti join on streaming DF).
+
+    Args:
+        df: Input streaming DataFrame
+        event_id_col: Column name for event_id
+        timestamp_col: Column name for timestamp
+        watermark_delay: Watermark for late events
+
+    Returns:
+        deduplicated_df: DataFrame with duplicates removed
+    """
+
+    logger.info(
+        f"Applying deduplication on '{event_id_col}' with watermark '{watermark_delay}'"
+    )
+
+    df_clean = df.filter(col(timestamp_col).isNotNull())
+
+    # Apply watermark
+    df_with_watermark = df_clean.withWatermark(timestamp_col, watermark_delay)
+
+    # Drop duplicates based on event_id
+    df_dedup = df_with_watermark.dropDuplicates([event_id_col])
+
+    return df_dedup
