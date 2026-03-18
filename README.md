@@ -205,17 +205,19 @@ project1/
 │   ├── raw/                  # Raw Parquet output from streaming
 │   ├── bad_records/  
 │   └── transformed/          # Aggregated Parquet output from batch ETL
-├── kafka/
-│   └── producer.py
-├── spark/
-│   ├── stream_consumer.py
-│   ├── batch_rdd_etl.py
-│   └── batch_df_etl.py
-├── airflow/
-│   └── dags/
-│       └── ecommerce_dag.py
-└── config/
-    └── spark-defaults.conf
+└── src
+    ├── kafka/
+    │   └── create_topics.py
+    │   └── producer.py
+    ├── spark/
+    │   ├── stream_consumer.py
+    │   ├── batch_rdd_etl.py
+    │   └── batch_df_etl.py
+    ├── airflow/
+    │   └── dags/
+    │       └── ecommerce_dag.py
+    └── config/
+        
 ```
 
 ---
