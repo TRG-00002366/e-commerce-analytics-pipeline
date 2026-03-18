@@ -1,0 +1,194 @@
+version: '3.8'
+
+services:
+  # =============================================================================
+  # ZOOKEEPER
+  # =============================================================================
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+    networks:
+      - pipeline-network
+
+  # =============================================================================
+  # KAFKA
+  # =============================================================================
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"     # external
+      - "29092:29092"   # internal
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - pipeline-network
+
+  # =============================================================================
+  # KAFKA UI
+  # =============================================================================
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    depends_on:
+      - kafka
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+    networks:
+      - pipeline-network
+
+  # =============================================================================
+  # SPARK
+  # =============================================================================
+  spark-master:
+    image: apache/spark:3.5.0
+    container_name: spark-master
+    ports:
+      - "7077:7077"
+      - "8081:8080"
+    environment:
+      - SPARK_NO_DAEMONIZE=true
+    command: ["/opt/spark/sbin/start-master.sh"]
+    volumes:
+      - ./src:/opt/spark-apps
+      - ./data:/opt/spark-data
+    networks:
+      - pipeline-network
+
+  spark-worker:
+    image: apache/spark:3.5.0
+    container_name: spark-worker
+    depends_on:
+      - spark-master
+    command: ["/opt/spark/sbin/start-worker.sh", "spark://spark-master:7077"]
+    environment:
+      - SPARK_WORKER_MEMORY=2G
+      - SPARK_WORKER_CORES=2
+      - SPARK_NO_DAEMONIZE=true
+    volumes:
+      - ./src:/opt/spark-apps
+      - ./data:/opt/spark-data
+    networks:
+      - pipeline-network
+
+  # =============================================================================
+  # POSTGRES (Airflow Metadata DB)
+  # =============================================================================
+  postgres:
+    image: postgres:15
+    container_name: airflow-postgres
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - pipeline-network
+
+  # =============================================================================
+  # AIRFLOW INIT
+  # =============================================================================
+  airflow-init:
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
+    container_name: airflow-init
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        airflow db init &&
+        airflow users create \
+          --username admin \
+          --password admin \
+          --firstname Admin \
+          --lastname User \
+          --role Admin \
+          --email admin@example.com || true
+    depends_on:
+      - postgres
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__CORE__FERNET_KEY: 'test_key_change_me'
+    networks:
+      - pipeline-network
+
+  # =============================================================================
+  # AIRFLOW WEBSERVER
+  # =============================================================================
+  airflow-webserver:
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
+    container_name: airflow-webserver
+    command: webserver
+    ports:
+      - "8082:8080"
+    depends_on:
+      - airflow-init
+      - kafka
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPARK_MASTER_URL: spark://spark-master:7077
+    volumes:
+      - ./src/airflow/dags:/opt/airflow/dags
+      - ./data:/opt/data
+    networks:
+      - pipeline-network
+
+  # =============================================================================
+  # AIRFLOW SCHEDULER
+  # =============================================================================
+  airflow-scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
+    container_name: airflow-scheduler
+    command: scheduler
+    depends_on:
+      - airflow-init
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPARK_MASTER_URL: spark://spark-master:7077
+    volumes:
+      - ./src/airflow/dags:/opt/airflow/dags
+      - ./data:/opt/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - pipeline-network
+
+# =============================================================================
+# NETWORKS & VOLUMES
+# =============================================================================
+networks:
+  pipeline-network:
+
+volumes:
+  kafka_data:
+  zookeeper_data:
+  postgres_data:
