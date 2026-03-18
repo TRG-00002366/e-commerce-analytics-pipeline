@@ -30,7 +30,7 @@ Amazon, a global multi-channel e-commerce retailer, wants to:
 │ Amazon Event │       │    Kafka        │       │  PySpark Streaming   │
 │  Simulator   │──────▶│  (Topic:       │──────▶│  Consumer / ETL      │
 │  (Producer)  │       │  order_events   │       │  (Spark Structured   │
-│              │       │  payment_events │       │   Streaming)          │
+│              │       │                 │       │   Streaming)          │
 └──────────────┘       └─────────────────┘       └──────────┬────────────┘
                                                         │
                                                         ▼
@@ -79,7 +79,7 @@ Amazon, a global multi-channel e-commerce retailer, wants to:
 
 **Goal:** Simulate Amazon-like order and payment events.
 
-- Create a Kafka topics named `order_events` and `payment_events`.
+- Create a Kafka topics named `order_events`.
 - Write a Python Kafka producer (`producer.py`) that generates JSON order events:
   ```json
   {
@@ -100,7 +100,7 @@ Amazon, a global multi-channel e-commerce retailer, wants to:
     "timestamp": "2026-02-19T10:32:00Z"
   }
   ```
-- Use `event_type` values: `ORDER_CREATED`, `ORDER_CANCELLED`, `ORDER_RETURNED`, `PAYMENT_COMPLETED`, `PAYMENT_FAILED`.
+- Use `event_type` values: `ORDER_CREATED`, `ORDER_CANCELLED`, `ORDER_RETURNED`.
 - Produce at least **500 events** with randomized data using the `Faker` library.
 
 ---
@@ -110,7 +110,7 @@ Amazon, a global multi-channel e-commerce retailer, wants to:
 **Goal:** Consume and persist the raw Kafka stream with schema enforcement, deduplication, and bad record handling.
 
 - Write a PySpark Structured Streaming job (`stream_consumer.py`).
-- Read from the`order_events` and `payment_events` Kafka topic.
+- Read from the`order_events` Kafka topic.
 - Deserialize JSON messages into a Spark DataFrame.
 - Implement:
   - Deduplication by event_id
@@ -235,7 +235,7 @@ project1/
 
 ## Stretch Goals (Optional)
 
-- Deploy the Spark jobs on an **AWS EMR** cluster (Week 1 - Friday).
+- Deploy the Spark jobs on an **AWS EMR** cluster.
 - Use **Spark accumulators** to track bad/malformed records during RDD processing.
 - Add a second Kafka topic (`order_updates`) for status changes and join both streams.
 - Implement **dynamic DAGs** in Airflow that auto-generate tasks based on a config file.
