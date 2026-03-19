@@ -60,22 +60,27 @@ services:
   # SPARK
   # =============================================================================
   spark-master:
-    image: apache/spark:3.5.0
+    build:
+      context: .
+      dockerfile: Dockerfile.spark
     container_name: spark-master
     ports:
       - "7077:7077"
       - "8081:8080"
     environment:
       - SPARK_NO_DAEMONIZE=true
+      - PYTHONPATH=/opt/spark-apps
     command: ["/opt/spark/sbin/start-master.sh"]
     volumes:
       - ./src:/opt/spark-apps
-      - ./data:/opt/spark-data
+      - ./data:/opt/data
     networks:
       - pipeline-network
 
   spark-worker:
-    image: apache/spark:3.5.0
+    build:
+      context: .
+      dockerfile: Dockerfile.spark
     container_name: spark-worker
     depends_on:
       - spark-master
@@ -84,9 +89,10 @@ services:
       - SPARK_WORKER_MEMORY=2G
       - SPARK_WORKER_CORES=2
       - SPARK_NO_DAEMONIZE=true
+      - PYTHONPATH=/opt/spark-apps
     volumes:
       - ./src:/opt/spark-apps
-      - ./data:/opt/spark-data
+      - ./data:/opt/data
     networks:
       - pipeline-network
 
@@ -94,7 +100,7 @@ services:
   # POSTGRES (Airflow Metadata DB)
   # =============================================================================
   postgres:
-    image: postgres:15
+    image: postgres:13
     container_name: airflow-postgres
     environment:
       POSTGRES_USER: airflow
@@ -117,7 +123,9 @@ services:
     command:
       - -c
       - |
+        echo "Initializing Airflow database..."
         airflow db init &&
+        echo "Creating admin user..."
         airflow users create \
           --username admin \
           --password admin \
@@ -125,12 +133,15 @@ services:
           --lastname User \
           --role Admin \
           --email admin@example.com || true
+        echo "Initialization complete!"
     depends_on:
       - postgres
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
-      AIRFLOW__CORE__FERNET_KEY: 'test_key_change_me'
+      AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY}
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+
     networks:
       - pipeline-network
 
@@ -146,16 +157,23 @@ services:
     ports:
       - "8082:8080"
     depends_on:
+      - postgres
       - airflow-init
       - kafka
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY}
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+      AIRFLOW__WEBSERVER__EXPOSE_CONFIG: 'true'
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       SPARK_MASTER_URL: spark://spark-master:7077
     volumes:
       - ./src/airflow/dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
       - ./data:/opt/data
+      
     networks:
       - pipeline-network
 
@@ -169,14 +187,20 @@ services:
     container_name: airflow-scheduler
     command: scheduler
     depends_on:
+      - postgres
       - airflow-init
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY}
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+      AIRFLOW__SCHEDULER__MIN_FILE_PROCESS_INTERVAL: 30
+      AIRFLOW__SCHEDULER__DAG_DIR_LIST_INTERVAL: 60
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       SPARK_MASTER_URL: spark://spark-master:7077
     volumes:
       - ./src/airflow/dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
       - ./data:/opt/data
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
