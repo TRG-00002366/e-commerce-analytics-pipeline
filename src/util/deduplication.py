@@ -1,6 +1,6 @@
 from pyspark.sql import DataFrame
 from pyspark.sql.functions import col
-from src.util.logging import get_logger
+from util.logging import get_logger
 
 logger = get_logger(__name__)
 
