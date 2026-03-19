@@ -1,0 +1,43 @@
+# Custom Airflow Image with Spark Client
+# This image extends the official Airflow image with Java and Spark binaries
+# to enable spark-submit from BashOperator tasks.
+#
+# Build: docker build -f Dockerfile.airflow -t airflow-spark .
+
+FROM apache/airflow:2.7.3-python3.10
+
+USER root
+
+# Install OpenJDK-17 (Required for Spark 3.5)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends openjdk-17-jre-headless && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install Spark Client Binaries (must match cluster version exactly)
+ENV SPARK_VERSION=3.5.0
+ENV HADOOP_VERSION=3
+
+RUN curl -o /tmp/spark.tgz https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz && \
+    tar -xf /tmp/spark.tgz -C /opt && \
+    mv /opt/spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION} /opt/spark && \
+    rm /tmp/spark.tgz
+
+# Set Environment Variables
+ENV SPARK_HOME=/opt/spark
+ENV PATH="${PATH}:${SPARK_HOME}/bin"
+
+# Dynamically set JAVA_HOME based on architecture (works on both amd64 and arm64)
+# This creates a script that runs at shell startup to set JAVA_HOME correctly
+RUN ARCH=$(dpkg --print-architecture) && \ 
+    echo "export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-${ARCH}" >> /etc/profile.d/java_home.sh && \
+    chmod +x /etc/profile.d/java_home.sh && \
+    ln -sf /usr/lib/jvm/java-17-openjdk-${ARCH} /usr/lib/jvm/java-17-openjdk
+
+# Set JAVA_HOME using the symlink (works regardless of architecture)
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk
+
+USER airflow
+
+# Install Python dependencies for Kafka integration
+RUN pip install --no-cache-dir kafka-python pyspark==3.5.0
