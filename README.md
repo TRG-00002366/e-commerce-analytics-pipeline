@@ -198,26 +198,31 @@ Amazon, a global multi-channel e-commerce retailer, wants to:
 ## Folder Structure
 
 ```
-project1/
+e-commerce-analytics-pipeline/
+├── docker-compose.yml
+├── Dockerfile.airflow
+├── .env
 ├── README.md
 ├── data/
 │   ├── regions.csv
-│   ├── raw/                  # Raw Parquet output from streaming
-│   ├── bad_records/  
-│   └── transformed/          # Aggregated Parquet output from batch ETL
+│   ├── bronze/                  # Raw Parquet output from streaming
+│   ├── silver/  
+│   └── gold/                    # Aggregated Parquet output from batch ETL
 └── src
     ├── kafka/
     │   └── create_topics.py
     │   └── producer.py
-    ├── spark/
-    │   ├── stream_consumer.py
-    │   ├── batch_rdd_etl.py
-    │   └── batch_df_etl.py
-    ├── airflow/
-    │   └── dags/
-    │       └── ecommerce_dag.py
-    └── config/
-        
+    ├── batch/
+    │   ├── rdd_etl.py
+    │   └── df_etl.py
+    ├── streaming/
+    │   └── stream_consumer.py
+    ├── util/
+    │   ├── deduplication.py
+    │   └── logging.py
+    └── airflow/
+        └── dags/
+           └── ecommerce_dag.py
 ```
 
 ---
