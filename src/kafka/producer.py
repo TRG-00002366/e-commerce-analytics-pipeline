@@ -1,3 +1,4 @@
+import os
 import json
 import random
 import time
@@ -8,7 +9,7 @@ from faker import Faker
 fake = Faker()
 
 producer = KafkaProducer(
-    bootstrap_servers="localhost:9092",
+    bootstrap_servers=os.getenv("KAFKA_SERVERS", "kafka: 29092"),
     value_serializer=lambda v: json.dumps(v).encode("utf-8")
 )
 

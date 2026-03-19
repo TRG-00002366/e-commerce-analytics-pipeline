@@ -1,7 +1,6 @@
+import os
 from kafka.admin import KafkaAdminClient, NewTopic
 from kafka.errors import TopicAlreadyExistsError
-
-BOOTSTRAP_SERVERS = "localhost:9092"
 
 TOPICS = [
     NewTopic(
@@ -14,7 +13,7 @@ TOPICS = [
 
 def create_topics():
     admin_client = KafkaAdminClient(
-        bootstrap_servers=BOOTSTRAP_SERVERS,
+        bootstrap_servers=os.getenv("KAFKA_SERVERS", "kafka: 29092"),
         client_id="topic_creator"
     )
 
