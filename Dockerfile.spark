@@ -3,6 +3,6 @@ FROM apache/spark:3.5.0
 USER root
 
 # Python deps
-RUN pip install kafka-python faker
+RUN pip install --no-cache-dir kafka-python faker
 
 USER spark

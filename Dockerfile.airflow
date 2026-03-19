@@ -29,7 +29,7 @@ ENV PATH="${PATH}:${SPARK_HOME}/bin"
 
 # Dynamically set JAVA_HOME based on architecture (works on both amd64 and arm64)
 # This creates a script that runs at shell startup to set JAVA_HOME correctly
-RUN ARCH=$(dpkg --print-architecture) && \ 
+RUN ARCH=$(dpkg --print-architecture) && \
     echo "export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-${ARCH}" >> /etc/profile.d/java_home.sh && \
     chmod +x /etc/profile.d/java_home.sh && \
     ln -sf /usr/lib/jvm/java-17-openjdk-${ARCH} /usr/lib/jvm/java-17-openjdk
