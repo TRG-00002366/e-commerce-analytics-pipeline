@@ -7,59 +7,6 @@ import os
 Performs DataFrame and Spark SQL-based batch ETL for analytics-ready datasets.
 """
 
-# Computes total orders, total revenue, and average order value per hour
-def hourly_sales_summary(df, timestamp_col="timestamp"):
-    
-    df_hourly = df.withColumn("hour", hour(col(timestamp_col))) \
-        .withColumn("date", date_format(col(timestamp_col), "yyyy-MM-dd")) \
-        .groupBy("date", "hour") \
-        .agg(
-            count("order_id").alias("total_orders"),
-            spark_sum(coalesce((col("unit_price") - col("discount")) * col("quantity"), 0)).alias("total_revenue"),
-            avg(coalesce((col("unit_price") - col("discount")) * col("quantity"), 0)).alias("avg_order_value")
-        )
-    return df_hourly
-
-# Ranks products by total quantity sold within each category and returns top N
-def top_n_products(df, category_col="category", n=10):
-   
-    window_cat = Window.partitionBy(category_col).orderBy(col("total_qty").desc())
-    df_top = df.groupBy(category_col, "product_id", "product_name") \
-        .agg(spark_sum(coalesce("quantity", 0)).alias("total_qty")) \
-        .withColumn("rank", row_number().over(window_cat)) \
-        .filter(col("rank") <= n)
-    return df_top
-
-# Aggregates total revenue by region.
-def regional_revenue(df, region_col="region_name"):
-    
-    df_region = df.groupBy(region_col) \
-        .agg(spark_sum(coalesce((col("unit_price") - col("discount")) * col("quantity"), 0)).alias("revenue"))
-    return df_region
-
-# Computes revenue and average basket size per customer segment.
-def customer_segment_kpis(df, segment_col="customer_segment"):
-    
-    df_segment = df.groupBy(segment_col) \
-        .agg(
-            spark_sum(coalesce((col("unit_price") - col("discount")) * col("quantity"), 0)).alias("revenue"),
-            avg(coalesce("quantity", 0)).alias("avg_basket_size")
-        )
-    return df_segment
-
-# Calculates return and cancellation counts and rates per category.
-def order_status_metrics(df, category_col="category"):
-    
-    df_status = df.groupBy(category_col) \
-        .agg(
-            count(when(col("order_status") == "RETURNED", True)).alias("returns"),
-            count(when(col("order_status") == "CANCELLED", True)).alias("cancellations"),
-            count("order_id").alias("total_orders")
-        )
-    df_status = df_status.withColumn("return_rate", coalesce(col("returns") / col("total_orders"), 0)) \
-                         .withColumn("cancellation_rate", coalesce(col("cancellations") / col("total_orders"), 0))
-    return df_status
-
 def df_etl():
     
     # Initialize Spark session
@@ -89,23 +36,47 @@ def df_etl():
         df_orders = df_orders.repartition(10)
         
         # Hourly Sales Summary
-        df_hourly = hourly_sales_summary(df_orders)
+        df_hourly = df_orders.withColumn("hour", hour(col("timestamp"))) \
+            .withColumn("date", date_format(col("timestamp"), "yyyy-MM-dd")) \
+            .groupBy("date", "hour") \
+            .agg(
+                count("order_id").alias("total_orders"),
+                spark_sum(coalesce((col("unit_price") - col("discount")) * col("quantity"), 0)).alias("total_revenue"),
+                avg(coalesce((col("unit_price") - col("discount")) * col("quantity"), 0)).alias("avg_order_value")
+            )
+        
         df_hourly.write.mode("overwrite").partitionBy("date").csv(os.path.join(OUTPUT_PATH, "hourly_sales"))
         
         # Top 10 Products by Quantity Sold per Category
-        df_top_products = top_n_products(df_orders)
+        window_cat = Window.partitionBy("category").orderBy(col("total_qty").desc())
+        df_top_products = df_orders.groupBy("category", "product_id", "product_name") \
+            .agg(spark_sum(coalesce("quantity", 0)).alias("total_qty")) \
+            .withColumn("rank", row_number().over(window_cat)) \
+            .filter(col("rank") <= 10)
         df_top_products.write.mode("overwrite").csv(os.path.join(OUTPUT_PATH, "top_products"))
         
         # Regional Revenue
-        df_regional = regional_revenue(df_orders)
+        df_regional = df_orders.groupBy("region_name") \
+            .agg(spark_sum(coalesce((col("unit_price") - col("discount")) * col("quantity"), 0)).alias("revenue"))
         df_regional.write.mode("overwrite").csv(os.path.join(OUTPUT_PATH, "regional_revenue"))
         
         # Customer Segment KPIs
-        df_segment = customer_segment_kpis(df_orders)
+        df_segment = df_orders.groupBy("customer_segment") \
+            .agg(
+                spark_sum(coalesce((col("unit_price") - col("discount")) * col("quantity"), 0)).alias("revenue"),
+                avg(coalesce("quantity", 0)).alias("avg_basket_size")
+            )
         df_segment.write.mode("overwrite").csv(os.path.join(OUTPUT_PATH, "customer_segment"))
         
         # Return & Cancellation Rates per Category
-        df_status = order_status_metrics(df_orders)
+        df_status = df_orders.groupBy("category") \
+            .agg(
+                count(when(col("order_status") == "RETURNED", True)).alias("returns"),
+                count(when(col("order_status") == "CANCELLED", True)).alias("cancellations"),
+                count("order_id").alias("total_orders")
+            )
+        df_status = df_status.withColumn("return_rate", coalesce(col("returns") / col("total_orders"), 0)) \
+                             .withColumn("cancellation_rate", coalesce(col("cancellations") / col("total_orders"), 0))
         df_status.write.mode("overwrite").csv(os.path.join(OUTPUT_PATH, "status_metrics"))
         
     except Exception as e:
