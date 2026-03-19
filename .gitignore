@@ -211,3 +211,6 @@ __marimo__/
 data/*
 !data/online_retail.csv
 !data/regions.csv
+
+# Airflow runtime logs
+logs/*
