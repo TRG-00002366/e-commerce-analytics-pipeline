@@ -1,1 +1,146 @@
-.vscode-remote-containers
+
+# Core Airflow Settings
+airflow:
+  base_log_folder: "/opt/airflow/logs"
+  dags_folder: "/opt/airflow/dags"
+  plugins_folder: "/opt/airflow/plugins"
+  
+# Database Configuration
+database:
+  sql_alchemy_conn: "postgresql://airflow:airflow@postgres:5432/airflow"
+  sql_engine_encoding: "utf-8"
+  sql_engine_pool_size: 10
+  sql_engine_pool_recycle: 3600
+
+# Executor Configuration
+executor:
+  type: "LocalExecutor"  # CeleryExecutor for distributed execution
+  parallelism: 32        # Max tasks across all DAGs
+  dag_concurrency: 16    # Max tasks per DAG
+  max_active_runs_per_dag: 1
+  task_pool_limit: 128
+
+# Scheduler Configuration
+scheduler:
+  scheduler_catchup_by_default: false
+  dag_dir_list_interval: 300  # Check for new DAGs every 5 minutes
+  catchup_mode: false
+  max_dagruns_to_create_per_loop: 10
+  scheduler_health_check_threshold: 30
+
+# WebUI Configuration
+webserver:
+  web_server_port: 8080
+  web_server_host: "0.0.0.0"
+  expose_config: false
+  dag_default_view: "graph"
+  dag_orientation: "LR"
+  max_log_fetch_lines: 10000
+  log_fetch_timeout_sec: 5
+
+# DAG Configuration Defaults
+dag_defaults:
+  owner: "airflow"
+  depends_on_past: false
+  retries: 1
+  retry_delay_minutes: 5
+  email_on_failure: true
+  email_on_retry: false
+  sla_minutes: 60
+  tags:
+    - "ecommerce"
+    - "spark"
+    - "kafka"
+
+# Email/Alert Configuration
+email:
+  email_backend: "airflow.providers.sendgrid.utils.sendgrid.SendgridEmailBackend"
+  smtp_host: "smtp.gmail.com"
+  smtp_port: 587
+  smtp_user: "airflow@example.com"
+  smtp_password: "${AIRFLOW_EMAIL_PASSWORD}"
+  smtp_mail_from: "airflow@example.com"
+  alert_email: "${ALERT_EMAIL}"
+  enable_failure_notifications: true
+
+# Logging Configuration
+logging:
+  base_log_folder: "/opt/airflow/logs"
+  log_level: "INFO"
+  log_format: "[%(asctime)s] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s"
+  simple_log_format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  colored_log_format: "[%(asctime)s] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s"
+  log_file_retention_days: 30
+
+# Security Configuration
+security:
+  secret_key: "${AIRFLOW_SECRET_KEY}"
+  fernet_key: "${AIRFLOW_FERNET_KEY}"
+
+# Spark Configuration for spark-submit
+spark:
+  spark_submit_cmd: "spark-submit"
+  master: "spark://spark-master:7077"
+  deploy_mode: "client"
+  executor_memory: "2g"
+  driver_memory: "2g"
+  executor_cores: 2
+  default_parallelism: 8
+  sql_shuffle_partitions: 8
+
+# Sensor Configuration
+sensors:
+  file_sensor_poke_interval: 60  # seconds
+  file_sensor_timeout: 21600     # 6 hours
+  file_sensor_mode: "poke"
+  polling_interval: 60            # seconds
+
+# Spark Streaming Configuration
+streaming:
+  kafka_bootstrap_servers: "kafka:29092"
+  kafka_topic: "order_events"
+  kafka_starting_offsets: "earliest"
+  spark_master: "local[*]"
+
+# Batch ETL Configuration
+batch_etl:
+  rdd_etl_script: "src/batch/rdd_etl.py"
+  df_etl_script: "src/batch/df_etl.py"
+  raw_path: "data/raw/"
+  bronze_path: "data/bronze/"
+  silver_path: "data/silver/"
+  gold_path: "data/transformed/df_analytics/"
+  output_path: "data/transformed/"
+
+# Data Quality Check Configuration
+data_quality:
+  hourly_sales_path: "data/transformed/df_analytics/hourly_sales"
+  min_row_count: 1
+  check_nulls: true
+  null_check_columns:
+    - "date"
+    - "hour"
+    - "total_orders"
+  check_negative_values: true
+
+# Kafka Configuration
+kafka:
+  bootstrap_servers: "kafka:29092"
+  topic: "order_events"
+  admin_client_id: "airflow_kafka_admin"
+  create_topics_script: "src/kafka/create_topics.py"
+
+# Task Retry Strategy
+retry_policy:
+  max_retries: 1
+  retry_delay_minutes: 5
+  exponential_backoff: false
+  backoff_multiplier: 1
+
+# DAG Execution Defaults
+dag_execution:
+  catchup: false
+  max_active_runs: 1
+  dag_concurrency: 16
+  schedule_interval: "@daily"
+  default_view: "graph"

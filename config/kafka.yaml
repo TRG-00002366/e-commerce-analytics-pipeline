@@ -1,0 +1,69 @@
+# Kafka Configuration for E-Commerce Analytics Pipeline
+
+# Broker Configuration
+broker:
+  bootstrap_servers: "kafka:29092"
+  connection_timeout: 10000
+  request_timeout: 30000
+  retries: 3
+
+# Topics Configuration
+topics:
+  order_events:
+    name: "order_events"
+    partitions: 3
+    replication_factor: 1
+    retention_ms: 604800000   # 7 days
+    segment_ms: 86400000      # 1 day
+    cleanup_policy: "delete"
+    compression_type: "snappy"
+
+# Producer Configuration
+producer:
+  bootstrap_servers: "kafka:29092"
+  client_id: "order_event_producer"
+  acks: "all"
+  retries: 3
+  max_in_flight_requests: 5
+  batch_size: 16384          # 16 KB
+  linger_ms: 100
+  buffer_memory: 33554432    # 32 MB
+  compression_type: "snappy"
+  value_serializer: "json"   # JSON serialization for event payloads
+  key_serializer: "string"
+
+# Consumer Configuration
+consumer:
+  bootstrap_servers: "kafka:29092"
+  group_id: "order_events_consumer_group"
+  auto_offset_reset: "earliest"
+  enable_auto_commit: true
+  auto_commit_interval_ms: 5000
+  max_partition_fetch_bytes: 1048576
+  session_timeout_ms: 30000
+  heartbeat_interval_ms: 10000
+  value_deserializer: "json"
+  key_deserializer: "string"
+
+# Spark Streaming Configuration for Kafka integration
+spark_streaming:
+  kafka_bootstrap_servers: "kafka:29092"
+  topic: "order_events"
+  starting_offsets: "earliest"
+  fail_on_data_loss: false
+  max_offsets_per_trigger: 100000
+  include_headers: false
+
+# Admin Client Configuration
+admin:
+  bootstrap_servers: "kafka:29092"
+  client_id: "kafka_admin_client"
+  connection_timeout: 10000
+  request_timeout: 30000
+
+# Performance Tuning
+performance:
+  num_partitions: 3
+  replication_factor: 1
+  replica_lag_time: 10000
+  min_insync_replicas: 1

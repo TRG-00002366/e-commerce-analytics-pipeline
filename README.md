@@ -29,14 +29,14 @@ Amazon, a global multi-channel e-commerce retailer, wants to:
 ┌──────────────┐       ┌─────────────────┐       ┌─────────────────────┐
 │ Amazon Event │       │    Kafka        │       │  PySpark Streaming   │
 │  Simulator   │──────▶│  (Topic:       │──────▶│  Consumer / ETL      │
-│  (Producer)  │       │  order_events   │       │  (Spark Structured   │
+│  (Producer)  │       │  order_events)  │       │  (Spark Structured   │
 │              │       │                 │       │   Streaming)          │
 └──────────────┘       └─────────────────┘       └──────────┬────────────┘
                                                         │
                                                         ▼
                                               ┌─────────────────────┐
                                               │  Raw Data Layer     │
-                                              │  (Parquet / JSON)   │
+                                              │     (Parquet)       │
                                               └──────────┬──────────┘
                                                          │
                                                          ▼
@@ -188,7 +188,7 @@ Amazon, a global multi-channel e-commerce retailer, wants to:
 | 2  | `stream_consumer.py`               | PySpark script       |
 | 3  | `batch_rdd_etl.py`                 | PySpark script       |
 | 4  | `batch_df_etl.py`                  | PySpark script       |
-| 5  | `ecommerce_dag.py`                 | Airflow DAG          |
+| 5  | `amazon_dag.py`                    | Airflow DAG          |
 | 6  | `regions.csv`                      | Reference data       |
 | 7  | `README.md`                        | Setup & run guide    |
 | 8  | Sample output screenshots          | PNG / Markdown       |
@@ -222,7 +222,48 @@ e-commerce-analytics-pipeline/
     │   └── logging.py
     └── airflow/
         └── dags/
-           └── ecommerce_dag.py
+           └── amazon_dag.py
+```
+
+---
+
+## Setup and Run Guide
+
+### Prerequisites
+
+- Docker and Docker Compose installed on your system.
+- Ensure that the required ports are available (e.g., Kafka on 9092, Spark on 7077, etc.).
+
+### Startup
+
+To start the e-commerce analytics pipeline, run the following commands in sequence:
+
+```bash
+docker-compose up -d --build
+
+chmod -R 777 data
+
+docker exec -u 0 -it spark-master bash -c "mkdir -p /home/spark/.ivy2 && chmod -R 777 /home/spark/.ivy2"
+
+docker exec -it spark-master python3 /opt/spark-apps/kafka/create_topics.py
+
+docker exec -it spark-master /opt/spark/bin/spark-submit \
+--master spark://spark-master:7077 \
+--packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0 \
+/opt/spark-apps/streaming/stream_consumer.py
+
+docker exec -it spark-master python3 /opt/spark-apps/kafka/producer.py
+```
+
+### Shutdown
+
+To shut down the pipeline:
+
+1. Press `Ctrl+C` in the terminals running the stream_consumer and producer to stop them.
+2. Run:
+
+```bash
+docker-compose down -v
 ```
 
 ---
@@ -240,10 +281,10 @@ e-commerce-analytics-pipeline/
 
 ---
 
-## Stretch Goals (Optional)
+## Stretch Goals
 
 - Deploy the Spark jobs on an **AWS EMR** cluster.
 - Use **Spark accumulators** to track bad/malformed records during RDD processing.
-- Add a second Kafka topic (`order_updates`) for status changes and join both streams.
+- Add a second Kafka topic (`payment_events`) for payments and join both streams.
 - Implement **dynamic DAGs** in Airflow that auto-generate tasks based on a config file.
 - Add data quality checks using assertions in the `validate_output` task.

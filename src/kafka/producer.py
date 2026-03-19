@@ -1,3 +1,7 @@
+"""
+Kafka producer for generating and streaming fake e-commerce order events to Kafka topic.
+"""
+
 import os
 import json
 import random
@@ -13,6 +17,7 @@ producer = KafkaProducer(
     value_serializer=lambda v: json.dumps(v).encode("utf-8")
 )
 
+# Event types for orders
 EVENT_TYPES = [
     "ORDER_CREATED",
     "ORDER_CANCELLED",
@@ -27,7 +32,7 @@ payment_methods = ["CREDIT_CARD", "DEBIT_CARD", "PAYPAL", "APPLE_PAY"]
 shipping_types = ["STANDARD", "EXPRESS", "PRIME_EXPRESS"]
 regions = ["US-East", "US-West", "EU-West", "AP-South"]
 
-
+# Generate a random order event
 def generate_event():
 
     quantity = random.randint(1, 5)
@@ -57,7 +62,7 @@ def generate_event():
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
 
-
+# Continuously send events to Kafka
 def stream_events():
 
     print("Starting Kafka event stream (1 event/sec)...")

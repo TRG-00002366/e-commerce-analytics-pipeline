@@ -1,34 +1,360 @@
-# Application configuration
+# Application Configuration for E-Commerce Analytics Pipeline
+
+# Application Metadata
 app:
-  name: "e-commerce-analytics-pipeline"
+  name: "E-Commerce Order Analytics Pipeline"
   version: "1.0.0"
+  description: "Real-time streaming analytics for Amazon order events"
   environment: "development"  # development, staging, production
 
-# Data paths
-data:
-  raw_path: "data/raw/"
-  transformed_path: "data/transformed/"
-  bad_records_path: "data/bad_records/"
-  regions_file: "data/regions.csv"
+# Environment Settings
+environment:
+  dev:
+    debug: true
+    log_level: "DEBUG"
+    kafka_servers: "kafka:29092"
+    spark_master: "spark://spark-master:7077"
+  staging:
+    debug: false
+    log_level: "INFO"
+    kafka_servers: "kafka-staging:29092"
+    spark_master: "spark://spark-master-staging:7077"
+  production:
+    debug: false
+    log_level: "INFO"
+    kafka_servers: "kafka-prod:29092"
+    spark_master: "spark://spark-master-prod:7077"
 
-# Kafka settings (for future use)
-kafka:
-  bootstrap_servers: ["localhost:9092"]
-  topics:
-    order_events: "order_events"
-    payment_events: "payment_events"
-  producer_config:
-    retries: 3
-    batch_size: 16384
-    linger_ms: 5
+# Pipeline Configuration
+pipeline:
+  name: "Amazon Order Events Pipeline"
+  stages:
+    - "ingest"      # Kafka producer
+    - "stream"      # Spark streaming consumer
+    - "batch"       # Batch ETL transformations
+    - "quality"     # Data quality checks
+    - "publish"     # Output publishing
 
-# Logging
+# Data Layer Configuration
+data_layers:
+  raw:
+    name: "Raw Layer"
+    format: "parquet"
+    path: "/opt/data/raw"
+    compression: "snappy"
+    retention_days: 30
+    partition_by:
+      - "date"
+      - "event_type"
+
+  bronze:
+    name: "Bronze Layer"
+    format: "parquet"
+    path: "/opt/data/bronze"
+    compression: "snappy"
+    retention_days: 60
+    partition_by:
+      - "date"
+      - "event_type"
+    description: "Raw streaming events with light validation"
+
+  silver:
+    name: "Silver Layer"
+    format: "parquet"
+    path: "/opt/data/silver"
+    compression: "snappy"
+    retention_days: 90
+    partition_by:
+      - "date"
+      - "event_type"
+      - "region"
+    description: "Deduplicated and cleaned events"
+
+  gold:
+    name: "Gold Layer"
+    format: "parquet"
+    path: "/opt/data/gold"
+    compression: "snappy"
+    retention_days: 365
+    partition_by:
+      - "date"
+      - "region"
+    description: "Aggregated analytics datasets"
+
+# Event Schema Configuration
+event_schema:
+  name: "OrderEvent"
+  version: "1.0"
+  fields:
+    - name: "event_id"
+      type: "string"
+      required: true
+      description: "Unique event identifier"
+    - name: "event_type"
+      type: "string"
+      required: true
+      allowed_values: ["ORDER_CREATED", "ORDER_CANCELLED", "ORDER_RETURNED", "PAYMENT_COMPLETED", "PAYMENT_FAILED"]
+    - name: "order_id"
+      type: "string"
+      required: true
+    - name: "customer_id"
+      type: "string"
+      required: true
+    - name: "customer_segment"
+      type: "string"
+      required: false
+      allowed_values: ["REGULAR", "PRIME", "VIP"]
+    - name: "product_id"
+      type: "string"
+      required: true
+    - name: "product_name"
+      type: "string"
+      required: false
+    - name: "category"
+      type: "string"
+      required: false
+      allowed_values: ["Electronics", "Books", "Clothing", "Home", "Sports"]
+    - name: "quantity"
+      type: "integer"
+      required: true
+      min: 1
+      max: 100
+    - name: "unit_price"
+      type: "double"
+      required: true
+      min: 0
+    - name: "discount"
+      type: "double"
+      required: false
+      min: 0
+    - name: "payment_method"
+      type: "string"
+      required: false
+      allowed_values: ["CREDIT_CARD", "DEBIT_CARD", "PAYPAL", "APPLE_PAY"]
+    - name: "shipping_type"
+      type: "string"
+      required: false
+      allowed_values: ["STANDARD", "EXPRESS", "PRIME_EXPRESS"]
+    - name: "region"
+      type: "string"
+      required: true
+      allowed_values: ["US-East", "US-West", "EU-West", "AP-South"]
+    - name: "timestamp"
+      type: "string"
+      required: true
+      format: "ISO-8601"
+
+# Producer Configuration
+producer:
+  enabled: true
+  class_name: "src.kafka.producer.KafkaProducer"
+  batch_interval_seconds: 1
+  events_per_batch: 1
+  event_generation:
+    min_event_id: 90000
+    max_event_id: 99999
+    min_order_id: 10000
+    max_order_id: 99999
+    min_customer_id: 100
+    max_customer_id: 999
+    min_product_id: 10
+    max_product_id: 99
+    quantity_min: 1
+    quantity_max: 5
+    unit_price_min: 10
+    unit_price_max: 200
+    discount_min: 0
+    discount_max: 10
+
+# Streaming Consumer Configuration
+streaming_consumer:
+  enabled: true
+  class_name: "src.streaming.stream_consumer.StreamConsumer"
+  kafka_consumer:
+    topic: "order_events"
+    starting_offset: "earliest"
+    fail_on_data_loss: false
+    max_offsets_per_trigger: 100000
+  micro_batch:
+    enabled: true
+    trigger_interval: "10 seconds"
+  deduplication:
+    enabled: true
+    window_duration: "10 minutes"
+    watermark_delay: "10 minutes"
+  output:
+    bronze_path: "/opt/data/bronze"
+    silver_path: "/opt/data/silver"
+    write_mode: "append"
+
+# Batch ETL Configuration
+batch_etl:
+  rdd_etl:
+    enabled: true
+    class_name: "src.batch.rdd_etl"
+    description: "RDD-based low-level transformations"
+    input_path: "/opt/data/raw"
+    output_path: "/opt/data/transformed/rdd_revenue"
+    repartition_count: 10
+    features:
+      - "order_parsing"
+      - "event_type_classification"
+      - "deduplication"
+      - "cancellation_filtering"
+      - "revenue_aggregation"
+
+  df_etl:
+    enabled: true
+    class_name: "src.batch.df_etl"
+    description: "DataFrame/SQL-based analytics transformations"
+    input_path: "/opt/data/silver"
+    output_path: "/opt/data/gold"
+    repartition_count: 10
+    outputs:
+      - name: "hourly_sales"
+        description: "Hourly order and revenue aggregations"
+      - name: "top_products"
+        description: "Top products by revenue"
+      - name: "regional_revenue"
+        description: "Revenue aggregated by region"
+      - name: "customer_segment"
+        description: "Customer segment performance metrics"
+      - name: "status_metrics"
+        description: "Order status distribution"
+    features:
+      - "order_status_classification"
+      - "regional_enrichment"
+      - "multi-level_aggregations"
+      - "time_series_bucketing"
+
+# Data Quality Configuration
+data_quality:
+  enabled: true
+  checks:
+    - name: "row_count"
+      enabled: true
+      min_rows: 1
+      description: "Validate minimum row count in datasets"
+    
+    - name: "null_values"
+      enabled: true
+      check_columns:
+        - "event_id"
+        - "order_id"
+        - "customer_id"
+        - "timestamp"
+      description: "Validate critical fields are not null"
+    
+    - name: "schema_validation"
+      enabled: true
+      description: "Validate data conforms to expected schema"
+    
+    - name: "value_ranges"
+      enabled: true
+      checks:
+        quantity:
+          min: 1
+          max: 100
+        unit_price:
+          min: 0
+          max: 10000
+        discount:
+          min: 0
+          max: 100
+    
+    - name: "enum_values"
+      enabled: true
+      checks:
+        event_type: ["ORDER_CREATED", "ORDER_CANCELLED", "ORDER_RETURNED", "PAYMENT_COMPLETED", "PAYMENT_FAILED"]
+        customer_segment: ["REGULAR", "PRIME", "VIP"]
+        region: ["US-East", "US-West", "EU-West", "AP-South"]
+
+# Monitoring & Alerting
+monitoring:
+  enabled: true
+  metrics:
+    - "events_processed"
+    - "events_failed"
+    - "latency_ms"
+    - "throughput_events_per_sec"
+    - "data_quality_score"
+  
+  thresholds:
+    latency_warning_ms: 1000
+    latency_critical_ms: 5000
+    quality_score_warning: 95
+    quality_score_critical: 90
+
+  alerts:
+    enabled: true
+    email_on_failure: true
+    slack_webhook: "${SLACK_WEBHOOK_URL}"
+    alert_recipients:
+      - "data-team@example.com"
+      - "devops@example.com"
+
+# Error Handling & Retry Strategy
+error_handling:
+  max_retries: 3
+  retry_delay_seconds: 5
+  backoff_multiplier: 2.0
+  exponential_backoff: true
+  recovery_strategies:
+    - "retry"
+    - "skip_batch"
+    - "alert"
+  
+  failure_modes:
+    kafka_connection_failure:
+      action: "retry"
+      max_attempts: 5
+    
+    invalid_schema:
+      action: "skip_batch"
+      log_level: "WARNING"
+    
+    data_quality_failure:
+      action: "alert"
+      log_level: "ERROR"
+
+# Feature Flags
+features:
+  enable_streaming: true
+  enable_batch_etl: true
+  enable_data_quality_checks: true
+  enable_monitoring: true
+  enable_airflow_orchestration: true
+  enable_deduplication: true
+  enable_schema_validation: true
+  enable_compression: true
+  enable_partitioning: true
+
+# Dependencies & Versions
+dependencies:
+  pyspark_version: "3.5.8"
+  kafka_client_version: "2.8.1"
+  python_version: "3.9+"
+  airflow_version: "2.7+"
+  
+# Logging Configuration
 logging:
   level: "INFO"
-  format: "%(asctime)s | %(levelname)s | %(name)s | %(message)s"
-  file: "logs/app.log"
+  format: "[%(asctime)s] %(name)s - %(levelname)s - %(message)s"
+  file_path: "/opt/airflow/logs/ecommerce_pipeline.log"
+  max_file_size_mb: 100
+  backup_count: 5
+  console_output: true
 
-# Other settings
-misc:
-  faker_locale: "en_US"
-  batch_size: 500
+# Debugging & Development
+debug:
+  verbose_logging: false
+  profile_enabled: false
+  sample_rate: 1.0  # 1.0 = 100% (process all events)
+  dry_run_mode: false
+
+# Performance Tuning
+performance:
+  shuffle_partitions: 8
+  default_parallelism: 8
+  broadcast_threshold_mb: 10
+  max_memory_per_task_mb: 512

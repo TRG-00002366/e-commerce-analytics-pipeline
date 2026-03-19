@@ -1,7 +1,12 @@
+"""
+Script to create Kafka topics for the e-commerce analytics pipeline.
+"""
+
 import os
 from kafka.admin import KafkaAdminClient, NewTopic
 from kafka.errors import TopicAlreadyExistsError
 
+# Define topics to create
 TOPICS = [
     NewTopic(
         name="order_events",
@@ -10,8 +15,9 @@ TOPICS = [
     )
 ]
 
-
+# Create Kafka topics
 def create_topics():
+
     admin_client = KafkaAdminClient(
         bootstrap_servers=os.getenv("KAFKA_SERVERS", "kafka: 29092"),
         client_id="topic_creator"

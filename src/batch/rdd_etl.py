@@ -1,23 +1,5 @@
 """
-Purpose:
     Implements the RDD-based batch ETL transformations on raw Amazon order events.
-
-Responsibilities:
-    - Load raw Parquet files from Bronze layer into RDDs.
-    - Filter out CANCELLED orders.
-    - Compute total revenue per product_id using key-value pair RDDs.
-    - Track malformed/bad records using Spark accumulators.
-    - Save transformed results to Silver/Gold layer (text or Parquet).
-
-Important Behavior:
-    - Applies map, filter, reduceByKey transformations.
-    - Ensures idempotency by avoiding duplicate processing of the same order_id.
-    - Logs summary statistics for validation (e.g., total revenue, number of records processed).
-
-Design Notes:
-    - Focused on demonstrating low-level Spark capabilities (RDD transformations).
-    - Works in conjunction with df_etl.py for full batch analytics.
-    - Designed to be modular so additional RDD-based transformations can be added.
 """
 
 from pyspark.sql import SparkSession
@@ -35,6 +17,7 @@ OUTPUT_PATH = os.getenv("OUTPUT_PATH", "data/transformed/rdd_revenue/")
 malformed_records = spark.sparkContext.accumulator(0)
 processed_orders = spark.sparkContext.accumulator(0)
 
+# Define schema for raw order events
 schema = StructType([
     StructField("event_id", StringType(), True),
     StructField("event_type", StringType(), True),
@@ -46,6 +29,7 @@ schema = StructType([
     StructField("timestamp", TimestampType(), True)
 ])
 
+# Extract and validate order fields, track status for filtering
 def parse_row(row):
     try:
         order_id = row["order_id"]
@@ -70,14 +54,27 @@ def parse_row(row):
         malformed_records.add(1)
         return None
 
+# Load raw parquet and convert to RDD for low-level transformations
 df_raw = spark.read.schema(schema).parquet(os.path.join(RAW_PATH, "*"))
 rdd_raw = df_raw.rdd.map(lambda row: row.asDict())
+
+# Parse and validate each row
 rdd_parsed = rdd_raw.map(parse_row).filter(lambda x: x is not None)
-rdd_deduped = rdd_parsed.reduceByKey(lambda a, b: a)  # Deduplicate
+
+# Remove duplicate orders
+rdd_deduped = rdd_parsed.reduceByKey(lambda a, b: a)
+
+# Filter out cancelled orders
 rdd_valid = rdd_deduped.filter(lambda x: x[1][2] != "CANCELLED")
-rdd_valid = rdd_valid.repartition(10)  # Repartition for performance on large data
+
+# Optimize for shuffle operation
+rdd_valid = rdd_valid.repartition(10)
+
+# Aggregate revenue by product
 rdd_revenue = rdd_valid.map(lambda x: (x[1][0], x[1][1])).reduceByKey(lambda a, b: a + b)
+
 rdd_revenue.map(lambda x: f"{x[0]},{x[1]}").saveAsTextFile(OUTPUT_PATH)
+
 
 logger.info(f"Processed orders: {processed_orders.value}")
 logger.info(f"Malformed records: {malformed_records.value}")

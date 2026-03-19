@@ -1,12 +1,5 @@
 """
-Purpose:
     Consumes real-time Kafka streams of order events and writes to Bronze and Silver layers.
-
-Responsibilities:
-    - Connect to Kafka topic `order_events`.
-    - Deserialize JSON messages into Spark DataFrames.
-    - Write raw events to Bronze layer.
-    - Deduplicate and write cleaned events to Silver layer.
 """
 
 import os
@@ -66,25 +59,19 @@ def main():
         count = df.count()
         logger.info(f"Processing batch {batch_id}, records: {count}")
 
-        # -----------------------------
-        # Bronze (RAW)
-        # -----------------------------
+        # Bronze 
         df.write.mode("append") \
             .partitionBy("date", "event_type") \
             .parquet(bronze_path)
 
-        # -----------------------------
-        # Silver (CLEANED)
-        # -----------------------------
+        # Silver
         df_clean = deduplicate_events(df)
 
         df_clean.write.mode("append") \
             .partitionBy("date", "event_type") \
             .parquet(silver_path)
 
-    # -----------------------------
     # Kafka Source
-    # -----------------------------
     df_kafka = spark.readStream \
         .format("kafka") \
         .option("kafka.bootstrap.servers", kafka_servers) \
@@ -106,9 +93,7 @@ def main():
         .withColumn("timestamp", to_timestamp(col("timestamp"))) \
         .withColumn("date", to_date(col("timestamp")))
 
-    # -----------------------------
     # Streaming Query
-    # -----------------------------
     query = df_events.writeStream \
         .option("checkpointLocation", checkpoint_path) \
         .trigger(processingTime="1 minute") \

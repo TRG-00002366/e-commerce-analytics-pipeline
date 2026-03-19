@@ -1,30 +1,196 @@
-# Spark configuration
-spark:
-  app_name: "ECommerceAnalyticsPipeline"
-  master: "local[*]"  # Use "yarn" or "k8s" for cluster
-  config:
-    spark.sql.adaptive.enabled: true
-    spark.sql.adaptive.coalescePartitions.enabled: true
-    spark.serializer: "org.apache.spark.serializer.KryoSerializer"
-    spark.sql.shuffle.partitions: 200
-    spark.default.parallelism: 200
-    spark.memory.fraction: 0.8
-    spark.memory.storageFraction: 0.3
+# Spark Configuration for E-Commerce Analytics Pipeline
 
-# EMR-specific settings (for future use)
-emr:
-  release: "emr-7.0.0"
-  instance_types:
-    master: "m5.xlarge"
-    core: "r5.large"
-    core_count: 2
+# Cluster Configuration
+cluster:
+  master_url: "spark://spark-master:7077"
+  deploy_mode: "client"
+  app_name: "EcommerceAnalyticsPipeline"
 
-# Job-specific settings
-jobs:
-  batch_etl:
-    cache_enabled: true
-    repartition_factor: 10
-  streaming:
-    checkpoint_location: "data/checkpoints/"
-    output_mode: "append"
-    trigger_interval: "1 minute"
+# Executor Configuration
+executor:
+  instances: 2
+  cores: 2
+  memory: "2g"
+  memory_overhead: "512m"
+  max_result_size: "1g"
+  timeout: 300
+
+# Driver Configuration
+driver:
+  cores: 2
+  memory: "2g"
+  memory_overhead: "512m"
+  max_result_size: "1g"
+
+# Memory Configuration
+memory:
+  executor_memory: "2g"
+  driver_memory: "2g"
+  memory_fraction: 0.6
+  memory_storage_fraction: 0.5
+  off_heap_enabled: true
+  off_heap_size: "512m"
+
+# Shuffle Configuration
+shuffle:
+  partitions: 8
+  compress: true
+  spill: true
+  spill_compress: true
+  service_enabled: true
+  service_port: 7337
+
+# Networking Configuration
+network:
+  timeout: 120
+  port: 7077
+  kryo_enabled: true
+  kryo_buffer_max: "64m"
+  kryo_classes_to_register: []
+
+# SQL Configuration
+sql:
+  shuffle_partitions: 8
+  default_catalog: "spark_catalog"
+  warehouse_dir: "/user/hive/warehouse"
+  statistics_enabled: true
+  statistics_histograms_enabled: true
+  adaptive_enabled: true
+  adaptive_skew_join_enabled: true
+
+# Streaming Configuration
+streaming:
+  checkpoint: "/opt/data/checkpoint"
+  kafka_bootstrap_servers: "kafka:29092"
+  kafka_topic: "order_events"
+  kafka_starting_offsets: "earliest"
+  kafka_fail_on_data_loss: false
+  micro_batch_enabled: true
+  trigger_interval: "10 seconds"
+  watermark_delay: "10 minutes"
+  state_store_provider: "rocksdb"
+
+# Data Paths
+data_paths:
+  raw_path: "/opt/data/raw"
+  bronze_path: "/opt/data/bronze"
+  silver_path: "/opt/data/silver"
+  gold_path: "/opt/data/gold"
+  checkpoint_path: "/opt/data/checkpoint"
+  regions_path: "/opt/data/regions.csv"
+  output_path: "/opt/data/output"
+
+# Batch ETL Configuration
+batch:
+  rdd_etl:
+    app_name: "AmazonRDD_ETL"
+    shuffle_partitions: 8
+    repartition_count: 10
+  df_etl:
+    app_name: "AmazonDF_ETL"
+    shuffle_partitions: 8
+    repartition_count: 10
+
+# Streaming Consumer Configuration
+streaming_consumer:
+  app_name: "OrderEventStreamConsumer"
+  shuffle_partitions: 8
+  checkpoint_interval: 30
+  checkpoint_path: "/opt/data/checkpoint"
+
+# Caching Configuration
+cache:
+  enabled: true
+  strategy: "MEMORY_AND_DISK"
+  compression_codec: "lz4"
+
+# Optimization Configuration
+optimization:
+  broadcast_timeout: 300
+  broadcast_chunk_size: "4m"
+  partition_pruning: true
+  predicate_pushdown: true
+  join_reorder: true
+  constant_folding: true
+  null_propagation: true
+  rdd_compression: true
+
+# Serialization Configuration
+serialization:
+  serializer: "org.apache.spark.serializer.KryoSerializer"
+  kryo_unsafe: true
+  kryo_registration_required: false
+  
+# Logging Configuration
+logging:
+  log_level: "INFO"
+  log_conf: false
+  debug: false
+
+# Environment Variables
+environment:
+  spark_env_loaded: true
+  java_opts: "-Duser.timezone=UTC"
+  omp_num_threads: 1
+
+# Application Configuration
+application:
+  default_shuffle_partitions: 8
+  default_parallelism: 8
+  max_partitions: 200
+  repartition_count: 10
+  cache_partitions: 10
+
+# Join Configuration
+join:
+  broadcast_hash_join_threshold: "10485760"  # 10MB
+  broadcast_timeout: 300
+  skew_join_enabled: true
+  skew_join_factor: 10.0
+
+# Partition Configuration
+partition:
+  partition_by_columns:
+      - "date"
+      - "event_type"
+      - "region"
+    output_format: "parquet"
+    compression: "snappy"
+
+# Parquet Configuration
+parquet:
+  compression_codec: "snappy"
+  enable_dictionary_encoding: true
+  write_legacy_format: false
+  infer_timestamps: true
+
+# Schema Configuration
+schema:
+  infer_schema: true
+  merge_schema: true
+  partition_columns:
+    - "date"
+    - "event_type"
+    - "region"
+
+# Performance Tuning
+performance:
+  unsafe_sort_enable: true
+  shuffle_estimate_skew_enabled: true
+  shuffle_optimize_skew_aware_reads: true
+  locality_wait: 3000
+  locality_wait_node: 0
+  locality_wait_process: 0
+  locality_wait_rack: 0
+
+# Data Format Configuration
+formats:
+  default_format: "parquet"
+  csv_inferSchemaFlag: true
+  csv_samplingRatio: 1.0
+
+# Monitoring Configuration
+monitoring:
+  app_status_store_enabled: true
+  shuffle_tracking_enabled: true
+  memory_profiling_enabled: false
