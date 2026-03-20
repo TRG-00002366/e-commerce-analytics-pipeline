@@ -57,6 +57,7 @@ def test_df_etl_reads_silver_and_writes_gold(monkeypatch, tmp_path):
     monkeypatch.setattr(df_etl, "row_number", lambda *args, **kwargs: MagicMock(over=lambda w: MagicMock()))
     monkeypatch.setattr(df_etl, "spark_sum", lambda *args, **kwargs: MagicMock())
     monkeypatch.setattr(df_etl, "coalesce", lambda *args, **kwargs: MagicMock())
+    monkeypatch.setattr(df_etl, "lit", lambda *args, **kwargs: MagicMock())
     monkeypatch.setattr(df_etl, "hour", lambda *args, **kwargs: MagicMock())
     monkeypatch.setattr(df_etl, "date_format", lambda *args, **kwargs: MagicMock())
 

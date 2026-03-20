@@ -31,7 +31,7 @@ from src.kafka_jobs import create_topics, producer
 # Ensure create_topics creates the configured topics and closes the client
 def test_create_topics_calls_kafka_admin_and_closes():
 
-    with patch("src.kafka.create_topics.KafkaAdminClient") as MockAdmin:
+    with patch("src.kafka_jobs.create_topics.KafkaAdminClient") as MockAdmin:
         admin_instance = MockAdmin.return_value
 
         env = {"KAFKA_SERVERS": "kafka:1234"}
@@ -51,7 +51,7 @@ def test_create_topics_calls_kafka_admin_and_closes():
 # If an existing topic error is raised, create_topics should still close the client
 def test_create_topics_handles_topic_already_exists_error():
 
-    with patch("src.kafka.create_topics.KafkaAdminClient") as MockAdmin:
+    with patch("src.kafka_jobs.create_topics.KafkaAdminClient") as MockAdmin:
         admin_instance = MockAdmin.return_value
         admin_instance.create_topics.side_effect = create_topics.TopicAlreadyExistsError()
 
@@ -85,10 +85,10 @@ def test_create_topics_uses_correct_newtopic_definition(monkeypatch):
     monkeypatch.setattr(admin_mod, "NewTopic", NewTopicStub)
 
     # Reload module so TOPICS is rebuilt using our stub
-    sys.modules.pop("src.kafka.create_topics", None)
+    sys.modules.pop("src.kafka_jobs.create_topics", None)
     import importlib
 
-    create_topics_mod = importlib.import_module("src.kafka.create_topics")
+    create_topics_mod = importlib.import_module("src.kafka_jobs.create_topics")
 
     assert len(created) == 1
     topic = created[0]
