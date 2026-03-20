@@ -174,7 +174,6 @@ Amazon, a global multi-channel e-commerce retailer, wants to:
 - Configure:
   - `schedule_interval`: `@daily`
   - `retries`: 2, `retry_delay`: 5 minutes
-  - `email_on_failure`: `true`
   - Use **Connections** for Kafka broker and Spark cluster settings.
   - Create at least one **parameterized DAG** that accepts `execution_date` as a parameter.
 

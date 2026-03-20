@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 default_args = {
     "owner": "rev",
     "depends_on_past": False,
-    "retries": 1,
+    "retries": 2,
     "retry_delay": timedelta(minutes=5),
 }
 
@@ -17,8 +17,8 @@ with DAG(
     dag_id="df_batch_etl_pipeline",
     default_args=default_args,
     description="Batch ETL for Gold layer using PySpark",
-    schedule_interval="*/1 * * * *",
-    start_date=datetime(2026, 1, 1),
+    schedule_interval=None,
+    start_date=datetime(2024, 1, 1),
     catchup=False,
     tags=["spark", "batch", "etl"],
 ) as dag:

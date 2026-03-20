@@ -1,9 +1,7 @@
 version: '3.8'
 
 services:
-  # =============================================================================
-  # ZOOKEEPER
-  # =============================================================================
+  ### ZOOKEEPER ###
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
     container_name: zookeeper
@@ -23,9 +21,7 @@ services:
     networks:
       - pipeline-network
 
-  # =============================================================================
-  # KAFKA
-  # =============================================================================
+  ### KAFKA ###
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     container_name: kafka
@@ -52,9 +48,7 @@ services:
     networks:
       - pipeline-network
 
-  # =============================================================================
-  # KAFKA UI
-  # =============================================================================
+  ### KAFKA UI ###
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
     container_name: kafka-ui
@@ -68,9 +62,7 @@ services:
     networks:
       - pipeline-network
 
-  # =============================================================================
-  # SPARK
-  # =============================================================================
+  ### SPARK ###
   spark-master:
     build:
       context: .
@@ -108,9 +100,7 @@ services:
     networks:
       - pipeline-network
 
-  # =============================================================================
-  # POSTGRES (Airflow Metadata DB)
-  # =============================================================================
+  ### POSTGRES (Airflow Metadata DB) ###
   postgres:
     image: postgres:13
     container_name: airflow-postgres
@@ -128,9 +118,7 @@ services:
     networks:
       - pipeline-network
 
-  # =============================================================================
-  # AIRFLOW INIT
-  # =============================================================================
+  ### AIRFLOW INIT ###
   airflow-init:
     build:
       context: .
@@ -163,9 +151,7 @@ services:
     networks:
       - pipeline-network
 
-  # =============================================================================
-  # AIRFLOW WEBSERVER
-  # =============================================================================
+  ### AIRFLOW WEBSERVER ###
   airflow-webserver:
     build:
       context: .
@@ -205,9 +191,7 @@ services:
     networks:
       - pipeline-network
 
-  # =============================================================================
-  # AIRFLOW SCHEDULER
-  # =============================================================================
+  ### AIRFLOW SCHEDULER ###
   airflow-scheduler:
     build:
       context: .
@@ -238,9 +222,7 @@ services:
     networks:
       - pipeline-network
 
-# =============================================================================
-# NETWORKS & VOLUMES
-# =============================================================================
+### NETWORKS & VOLUMES ###
 networks:
   pipeline-network:
 
