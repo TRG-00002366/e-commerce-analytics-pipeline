@@ -26,7 +26,7 @@ sys.modules["kafka"] = kafka_mod
 sys.modules["kafka.admin"] = admin_mod
 sys.modules["kafka.errors"] = errors_mod
 
-from src.kafka import create_topics, producer
+from src.kafka_jobs import create_topics, producer
 
 # Ensure create_topics creates the configured topics and closes the client
 def test_create_topics_calls_kafka_admin_and_closes():
