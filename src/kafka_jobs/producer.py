@@ -7,7 +7,7 @@ import json
 import random
 import time
 from datetime import datetime, timezone
-from kafka_jobs import KafkaProducer
+from kafka import KafkaProducer
 from faker import Faker
 
 fake = Faker()
