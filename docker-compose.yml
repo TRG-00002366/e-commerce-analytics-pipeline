@@ -14,6 +14,12 @@ services:
       ZOOKEEPER_TICK_TIME: 2000
     volumes:
       - zookeeper_data:/var/lib/zookeeper/data
+    healthcheck:
+      test: [ "CMD-SHELL", "cub zk-ready localhost:2181 5" ]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
     networks:
       - pipeline-network
 
@@ -23,8 +29,6 @@ services:
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     container_name: kafka
-    depends_on:
-      - zookeeper
     ports:
       - "9092:9092"     # external
       - "29092:29092"   # internal
@@ -37,6 +41,14 @@ services:
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
     volumes:
       - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: [ "CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      zookeeper:
+        condition: service_healthy
     networks:
       - pipeline-network
 
@@ -108,6 +120,11 @@ services:
       POSTGRES_DB: airflow
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "airflow" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - pipeline-network
 
@@ -134,13 +151,14 @@ services:
           --role Admin \
           --email admin@example.com || true
         echo "Initialization complete!"
-    depends_on:
-      - postgres
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
       AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY}
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+    depends_on:
+      postgres:
+        condition: service_healthy
 
     networks:
       - pipeline-network
@@ -156,11 +174,8 @@ services:
     command: webserver
     ports:
       - "8082:8080"
-    depends_on:
-      - postgres
-      - airflow-init
-      - kafka
     environment:
+      PYTHONPATH: /opt/spark-apps
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
       AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY}
@@ -173,7 +188,20 @@ services:
       - ./src/airflow/dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
       - ./data:/opt/data
-      
+      - ./src:/opt/spark-apps
+    healthcheck:
+      test: [ "CMD", "curl", "--fail", "http://localhost:8080/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    depends_on:
+      postgres: 
+        condition: service_healthy
+      airflow-init: 
+        condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
     networks:
       - pipeline-network
 
@@ -186,10 +214,8 @@ services:
       dockerfile: Dockerfile.airflow
     container_name: airflow-scheduler
     command: scheduler
-    depends_on:
-      - postgres
-      - airflow-init
     environment:
+      PYTHONPATH: /opt/spark-apps
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
       AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY}
@@ -202,7 +228,13 @@ services:
       - ./src/airflow/dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
       - ./data:/opt/data
+      - ./src:/opt/spark-apps
       - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
     networks:
       - pipeline-network
 
