@@ -38,7 +38,7 @@ def main():
         .master(os.getenv("SPARK_MASTER_URL", "spark://spark-master:7077")) \
         .config("spark.sql.shuffle.partitions", os.getenv("SPARK_SQL_SHUFFLE_PARTITIONS", "8")) \
         .getOrCreate()
-
+    
     # Env vars
     kafka_servers = os.getenv("KAFKA_SERVERS", "kafka:29092")
     bronze_path = os.getenv("BRONZE_PATH", "/opt/data/bronze")
@@ -96,12 +96,11 @@ def main():
     # Streaming Query
     query = df_events.writeStream \
         .option("checkpointLocation", checkpoint_path) \
-        .trigger(processingTime="1 minute") \
         .foreachBatch(process_batch) \
         .start()
 
     logger.info("Streaming query started...")
-    query.awaitTermination()
+    query.awaitTermination(10)
 
 
 if __name__ == "__main__":
