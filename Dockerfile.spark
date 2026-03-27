@@ -2,7 +2,11 @@ FROM apache/spark:3.5.0
 
 USER root
 
-# Python deps
-RUN pip install --no-cache-dir kafka-python faker
+# Install Python dependencies including requests for Power BI integration
+RUN pip install --no-cache-dir kafka-python faker requests
+
+# Create Ivy cache directory and set permissions (Fixes the previous cache error)
+RUN mkdir -p /home/spark/.ivy2/cache && \
+    chown -R spark:spark /home/spark/.ivy2
 
 USER spark

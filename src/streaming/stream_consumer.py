@@ -10,6 +10,8 @@ from pyspark.sql.types import StructType, StructField, StringType, IntegerType, 
 from util.deduplication import deduplicate_events
 from util.logging import get_logger
 
+import requests
+
 logger = get_logger(__name__)
 
 # Schema for order events
@@ -59,7 +61,7 @@ def main():
         count = df.count()
         logger.info(f"Processing batch {batch_id}, records: {count}")
 
-        # Bronze 
+        # Bronze
         df.write.mode("append") \
             .partitionBy("date", "event_type") \
             .parquet(bronze_path)
@@ -70,6 +72,14 @@ def main():
         df_clean.write.mode("append") \
             .partitionBy("date", "event_type") \
             .parquet(silver_path)
+
+        """
+        # Push to Power BI
+        pbi_url = "YOUR_POWER_BI_PUSH_URL"
+        rows = df.toJSON().collect()  # Convert Spark rows to JSON strings
+        for row in rows:
+            requests.post(pbi_url, data=row)
+        """
 
     # Kafka Source
     df_kafka = spark.readStream \
