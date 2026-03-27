@@ -175,6 +175,7 @@ services:
       - ./logs:/opt/airflow/logs
       - ./data:/opt/data
       - ./src:/opt/spark-apps
+      - /var/run/docker.sock:/var/run/docker.sock
     healthcheck:
       test: [ "CMD", "curl", "--fail", "http://localhost:8080/health" ]
       interval: 30s
