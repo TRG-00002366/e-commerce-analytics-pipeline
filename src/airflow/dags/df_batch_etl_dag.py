@@ -7,69 +7,58 @@ from batch.df_etl import df_etl
 from datetime import datetime, timedelta
 
 default_args = {
-    "owner": "rev",
+    "owner": "airflow",
     "depends_on_past": False,
+    "start_date": datetime(2026, 3, 1),
+    "email_on_failure": False,
     "retries": 1,
-    "retry_delay": timedelta(minutes=5),
+    "retry_delay": timedelta(minutes=2),
 }
 
 with DAG(
-    dag_id="df_batch_etl_pipeline",
+    dag_id="ecommerce_pipeline",
     default_args=default_args,
-    description="Batch ETL for Gold layer using PySpark",
-    schedule_interval="*/1 * * * *",
-    start_date=datetime(2026, 1, 1),
+    description="End-to-end e-commerce Analytics: Kafka to Spark ETL",
+    schedule="@daily",
     catchup=False,
-    tags=["spark", "batch", "etl"],
 ) as dag:
 
-    start = EmptyOperator(task_id="start", dag=dag)
+    start = EmptyOperator(task_id="start")
 
-    # ✅ Check if Silver data exists
-    check_silver_data = BashOperator(
-        task_id="check_silver_data",
-        bash_command="""
-        if [ ! -d "/opt/data/silver" ]; then
-            echo "❌ Silver data not found!"
-            exit 1
-        else
-            echo "✅ Silver data exists"
-        fi
-        """,
-        dag=dag
+    produce_events = BashOperator(
+        task_id="produce_order_events",
+        bash_command="python /opt/project/kafka_jobs/producer.py --bootstrap-servers kafka:29092 --num-events 500",
     )
 
-    # ✅ Stable Spark submit (this is the key part)
-    # run_df_etl = BashOperator(
-    #     task_id="run_df_etl",
-    #     bash_command="""
-    #     echo "🚀 Starting Spark ETL job..."
-
-    #     /opt/spark/bin/spark-submit \
-    #     --master spark://spark-master:7077 \
-    #     --deploy-mode client \
-    #     /opt/batch/df_etl.py
-
-    #     echo "✅ Spark ETL completed"
-    #     """
-    # )
-
-    # run_df_etl = SparkSubmitOperator(
-    #     task_id="run_df_etl",
-    #     conn_id="spark-conn",
-    #     application="/opt/batch/df_etl.py",
-    #     conf={
-    #         "spark.master": "spark://spark-master:7077"
-    #     },
-    #     verbose=True,
-    #     dag=dag
-    # )
-
-    run_df_etl = PythonOperator(
-        task_id="run_df_etl",
-        python_callable=df_etl
+    run_streaming_consumer = BashOperator(
+        task_id="run_streaming_consumer",
+        bash_command=(
+            "spark-submit "
+            "--packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0 "
+            "/opt/project/streaming/stream_consumer.py "
+            "--bootstrap-servers kafka:29092 --duration 120"
+        ),
     )
 
-    end = EmptyOperator(task_id="end", dag=dag)
+    # STEP 5: RDD-based Batch ETL (Using /opt/project path)
+    run_batch_rdd_etl = BashOperator(
+        task_id="run_batch_rdd_etl",
+        bash_command="spark-submit /opt/project/batch/rdd_etl.py",
+    )
 
-    start >> check_silver_data >> run_df_etl >> end
+    # STEP 6: DataFrame-based Batch ETL (Using /opt/project path)
+    run_batch_df_etl = BashOperator(
+        task_id="run_batch_df_etl",
+        bash_command="spark-submit /opt/project/batch/df_etl.py",
+    )
+
+    end = EmptyOperator(task_id="end")
+
+    # --- DAG Structure ---
+    (
+        start
+        >> produce_events
+        >> run_streaming_consumer
+        >> [run_batch_rdd_etl, run_batch_df_etl]
+        >> end
+    )

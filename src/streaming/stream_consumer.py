@@ -14,6 +14,12 @@ import requests
 
 logger = get_logger(__name__)
 
+# Env vars
+kafka_servers = os.getenv("KAFKA_SERVERS", "kafka:29092")
+bronze_path = os.getenv("BRONZE_PATH", "/opt/data/bronze")
+silver_path = os.getenv("SILVER_PATH", "/opt/data/silver")
+checkpoint_path = os.getenv("CHECKPOINT_PATH", "/opt/data/checkpoint")
+
 # Schema for order events
 order_schema = StructType([
     StructField("event_id", StringType(), True),
@@ -33,6 +39,35 @@ order_schema = StructType([
     StructField("timestamp", StringType(), True)
 ])
 
+# Micro-batch logic
+def process_batch(df, batch_id):
+    if df.isEmpty():
+        logger.info(f"Batch {batch_id} empty")
+        return
+
+    count = df.count()
+    logger.info(f"Processing batch {batch_id}, records: {count}")
+
+    # Bronze
+    df.write.mode("append") \
+        .partitionBy("date", "event_type") \
+        .parquet(bronze_path)
+
+    # Silver
+    df_clean = deduplicate_events(df)
+
+    df_clean.write.mode("append") \
+        .partitionBy("date", "event_type") \
+        .parquet(silver_path)
+
+    """
+    # Push to Power BI
+    pbi_url = "YOUR_POWER_BI_PUSH_URL"
+    rows = df.toJSON().collect()  # Convert Spark rows to JSON strings
+    for row in rows:
+        requests.post(pbi_url, data=row)
+    """
+
 def main():
     # Spark Session (Docker Spark cluster)
     spark = SparkSession.builder \
@@ -41,45 +76,10 @@ def main():
         .config("spark.sql.shuffle.partitions", os.getenv("SPARK_SQL_SHUFFLE_PARTITIONS", "8")) \
         .getOrCreate()
 
-    # Env vars
-    kafka_servers = os.getenv("KAFKA_SERVERS", "kafka:29092")
-    bronze_path = os.getenv("BRONZE_PATH", "/opt/data/bronze")
-    silver_path = os.getenv("SILVER_PATH", "/opt/data/silver")
-    checkpoint_path = os.getenv("CHECKPOINT_PATH", "/opt/data/checkpoint")
-
     logger.info(f"Kafka Servers: {kafka_servers}")
     logger.info(f"Bronze path: {bronze_path}")
     logger.info(f"Silver path: {silver_path}")
     logger.info(f"Checkpoint path: {checkpoint_path}")
-
-    # Micro-batch logic
-    def process_batch(df, batch_id):
-        if df.isEmpty():
-            logger.info(f"Batch {batch_id} empty")
-            return
-
-        count = df.count()
-        logger.info(f"Processing batch {batch_id}, records: {count}")
-
-        # Bronze
-        df.write.mode("append") \
-            .partitionBy("date", "event_type") \
-            .parquet(bronze_path)
-
-        # Silver
-        df_clean = deduplicate_events(df)
-
-        df_clean.write.mode("append") \
-            .partitionBy("date", "event_type") \
-            .parquet(silver_path)
-
-        """
-        # Push to Power BI
-        pbi_url = "YOUR_POWER_BI_PUSH_URL"
-        rows = df.toJSON().collect()  # Convert Spark rows to JSON strings
-        for row in rows:
-            requests.post(pbi_url, data=row)
-        """
 
     # Kafka Source
     df_kafka = spark.readStream \
