@@ -1,0 +1,8 @@
+FROM apache/spark:3.5.0
+
+USER root
+
+# Install Python dependencies required for the pipeline
+RUN pip install --no-cache-dir kafka-python faker
+
+USER spark

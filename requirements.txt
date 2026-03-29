@@ -1,5 +1,4 @@
 lz4
 kafka-python-ng
-pyspark
+pyspark==3.5.0
 faker
-apache-airflow

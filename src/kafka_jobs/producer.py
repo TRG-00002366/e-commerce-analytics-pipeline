@@ -68,7 +68,6 @@ def create_producer(bootstrap_servers: str = "localhost:9092"):
     return KafkaProducer(
         bootstrap_servers=args.bootstrap_servers,
         api_version=(3, 5, 0),
-        compression_type="lz4",
         key_serializer=lambda k: k.encode("utf-8") if k else None,
         value_serializer=lambda v: json.dumps(v).encode("utf-8"),
         request_timeout_ms=30000,
@@ -87,7 +86,7 @@ def on_error(excp):
     print(f"Failed to send record: {excp}")
 
 
-def send_records(topic: str = "ecommerce_records", run_length: int = 30):
+def send_records(topic: str = "order_events", run_length: int = 30):
     producer = create_producer()
     start_time = time.perf_counter()
 
