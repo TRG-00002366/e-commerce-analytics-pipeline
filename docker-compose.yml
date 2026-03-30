@@ -63,6 +63,15 @@ services:
       - pipeline-network
 
   ### SPARK ###
+  spark-init:
+    image: busybox
+    container_name: pipeline-spark-init
+    command: [ "sh", "-c", "chmod -R 777 /opt/data" ]
+    volumes:
+      - ./data:/opt/data
+    networks:
+      - pipeline-network
+      
   spark-master:
     build:
       context: .
@@ -72,6 +81,7 @@ services:
       - "7077:7077"
       - "8081:8080"
     environment:
+      - SPARK_MASTER_HOST=spark-master
       - SPARK_NO_DAEMONIZE=true
       - PYTHONPATH=/opt/spark-apps
     command: ["/opt/spark/sbin/start-master.sh"]
@@ -90,6 +100,7 @@ services:
       - spark-master
     command: ["/opt/spark/sbin/start-worker.sh", "spark://spark-master:7077"]
     environment:
+      - SPARK_MASTER=spark://spark-master:7077
       - SPARK_WORKER_MEMORY=2G
       - SPARK_WORKER_CORES=2
       - SPARK_NO_DAEMONIZE=true
@@ -175,7 +186,8 @@ services:
       - ./logs:/opt/airflow/logs
       - ./data:/opt/data
       - ./src:/opt/spark-apps
-      - /var/run/docker.sock:/var/run/docker.sock
+      - ./src/kafka_jobs:/opt/kafka
+      ## - /var/run/docker.sock:/var/run/docker.sock
     healthcheck:
       test: [ "CMD", "curl", "--fail", "http://localhost:8080/health" ]
       interval: 30s
@@ -214,6 +226,7 @@ services:
       - ./logs:/opt/airflow/logs
       - ./data:/opt/data
       - ./src:/opt/spark-apps
+      - ./src/kafka_jobs:/opt/kafka
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       postgres:
@@ -226,6 +239,7 @@ services:
 ### NETWORKS & VOLUMES ###
 networks:
   pipeline-network:
+    driver: bridge
 
 volumes:
   kafka_data:

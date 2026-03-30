@@ -3,6 +3,7 @@ from airflow.operators.python import PythonOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.bash import BashOperator
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
+# from airflow.providers.docker.operators.docker import DockerOperator
 from kafka_jobs.producer import stream_events
 from kafka_jobs.create_topics import create_topic
 from datetime import datetime, timedelta
@@ -51,15 +52,12 @@ with DAG(
     #         "CHECKPOINT_PATH": "/opt/data/checkpoint"
     #     }
     # )
-    
+
     task_run_consumer = BashOperator(
-        task_id="run_streaming_consumer",
-        bash_command=(
-            "spark-submit "
-            "--packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0 "
-            "/opt/spark-apps/streaming/stream_consumer.py "
-            "--bootstrap-servers kafka:29092 --duration 120"
-        ),
+        task_id="run_consumer",
+        bash_command="spark-submit \
+            --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0 \
+            /opt/spark-apps/streaming/stream_consumer.py"
     )
 
     end = EmptyOperator(task_id="end")
