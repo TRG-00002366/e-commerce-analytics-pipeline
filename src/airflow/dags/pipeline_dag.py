@@ -8,9 +8,7 @@ from kafka_jobs.producer import stream_events
 from kafka_jobs.create_topics import create_topic
 from datetime import datetime, timedelta
 import os
-import re
 
-# SNOWFLAKE_CONN = os.getenv("MY_SNOWFLAKE_CONN", "snowflake://ADITISINGH2019:ECommerce2026!@TWTYSNZ-MEC97643/AMAZON_DB?warehouse=COMPUTE_WH&role=ACCOUNTADMIN")
 BRONZE_PATH = os.getenv("BRONZE_PATH", "/opt/data/bronze")
 SILVER_PATH = os.getenv("SILVER_PATH", "/opt/data/silver")
 BRONZE_LOAD_STAGE = os.getenv("BRONZE_LOAD_STAGE", "BRONZE_LOAD_STAGE")
@@ -36,7 +34,7 @@ default_args = {
 }
 
 with DAG(
-    dag_id="kafka_setup_workflow",
+    dag_id="pipeline_dag",
     default_args=default_args,
     description="Create Kafka topic and launch producer.",
     schedule_interval=None,
@@ -46,6 +44,11 @@ with DAG(
 ) as dag:
 
     start = EmptyOperator(task_id="start")
+    
+    task_clean_data_dir = BashOperator(
+        task_id="clean_data_dir",
+        bash_command="rm -rf /opt/data/silver /opt/data/bronze /opt/data/gold /opt/data/checkpoint"
+    )
     
     task_create_topic = PythonOperator(
         task_id="create_topic",
@@ -96,6 +99,7 @@ with DAG(
             )
             FILE_FORMAT = (TYPE = 'PARQUET')
             PATTERN = '.*\\.parquet'
+            FORCE=FALSE
             PURGE = TRUE;
         """,
         snowflake_conn_id="my_snowflake_conn"
@@ -109,6 +113,7 @@ with DAG(
             FILE_FORMAT = (TYPE='PARQUET')
             MATCH_BY_COLUMN_NAME = CASE_INSENSITIVE
             PATTERN = '.*\\.parquet'
+            FORCE=FALSE
             PURGE=TRUE;
         """,
         snowflake_conn_id="my_snowflake_conn"
@@ -193,9 +198,11 @@ with DAG(
 
     # start >> task_create_topic >> task_run_producer >> task_run_consumer >> end
 
-    
+    # Start
+    start >> task_clean_data_dir
+
     # Kafka stage
-    start >> task_create_topic >> task_run_producer >> task_run_consumer
+    task_clean_data_dir >> task_create_topic >> task_run_producer >> task_run_consumer
 
     # Bronze stage
     task_run_consumer >> task_put_to_bronze_stage
