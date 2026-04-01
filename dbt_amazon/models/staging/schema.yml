@@ -3,7 +3,7 @@ version: 2
 
 sources:
   - name: silver
-    database: amazon_db
+    database: AMAZON_DB
     schema: silver
     tables:
       - name: cleaned_orders

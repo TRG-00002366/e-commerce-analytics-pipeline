@@ -1,6 +1,4 @@
-sources:
-  - name: silver
-    database: ecommerce_db
-    schema: silver
-    tables:
-      - name: orders_cleaned
+SELECT DISTINCT
+    customer_id,
+    customer_segment
+FROM {{ ref('stg_orders') }}
