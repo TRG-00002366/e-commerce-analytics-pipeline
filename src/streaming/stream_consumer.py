@@ -28,8 +28,9 @@ order_schema = StructType([
     StructField("payment_method", StringType(), True),
     StructField("shipping_type", StringType(), True),
     StructField("region", StringType(), True),
-    StructField("timestamp", StringType(), True)
+    StructField("event_timestamp", StringType(), True)
 ])
+CONSUMER_WAIT_TIME = 110
 
 def main():
     # Spark Session (Docker Spark cluster)
@@ -37,7 +38,7 @@ def main():
         .appName("OrderEventStreamConsumer") \
         .config("spark.sql.shuffle.partitions", os.getenv("SPARK_SQL_SHUFFLE_PARTITIONS", "8")) \
         .getOrCreate()
-    
+
     # Env vars
     kafka_servers = os.getenv("KAFKA_SERVERS", "kafka:29092")
     bronze_path = os.getenv("BRONZE_PATH", "/opt/data/bronze")
@@ -58,7 +59,7 @@ def main():
         count = df.count()
         logger.info(f"Processing batch {batch_id}, records: {count}")
 
-        # Bronze 
+        # Bronze
         df.coalesce(1) \
             .write.mode("append") \
             .parquet(bronze_path)
@@ -82,11 +83,13 @@ def main():
     # Parse JSON
     messages_df = df_kafka.selectExpr("CAST(value AS STRING) as json")
 
+    print("messages_df: ", messages_df.schema)
     df_events_raw = messages_df \
         .select(from_json(col("json"), order_schema).alias("data")) \
         .select("data.*") \
         .filter(col("event_id").isNotNull())
 
+    print("df_events_raw: ", df_events_raw.schema)
     # Add timestamp + partition column
     df_events = df_events_raw \
         .withColumn("event_timestamp", to_timestamp(col("event_timestamp"))) \
@@ -99,7 +102,7 @@ def main():
         .start()
 
     logger.info("Streaming query started...")
-    query.awaitTermination(30)
+    query.awaitTermination(CONSUMER_WAIT_TIME)
 
 
 if __name__ == "__main__":

@@ -1,13 +1,14 @@
 """
 Kafka producer for generating and streaming fake e-commerce order events to Kafka topic.
 """
-
 import os
 import json
 import random
 from datetime import datetime, timezone
 from kafka import KafkaProducer
 from faker import Faker
+
+MAX_EVENTS = 200000
 
 def stream_events():
 
@@ -32,6 +33,33 @@ def stream_events():
     payment_methods = ["CREDIT_CARD", "DEBIT_CARD", "PAYPAL", "APPLE_PAY"]
     shipping_types = ["STANDARD", "EXPRESS", "PRIME_EXPRESS"]
 
+    weighted_categories = {
+        "Electronics": 0.3,
+        "Books": 0.2,
+        "Clothing": 0.2,
+        "Home": 0.15,
+        "Sports": 0.15
+    }
+
+    weighted_payment_methods = {
+        "CREDIT_CARD": 0.65,
+        "DEBIT_CARD": 0.05,
+        "PAYPAL": 0.10,
+        "APPLE_PAY": 0.2
+    }
+
+    weighted_customer_segments = {
+        "REGULAR": 0.7,
+        "PRIME": 0.25,
+        "VIP": 0.05
+    }
+
+    weighted_shipping_types = {
+        "STANDARD": 0.7,
+        "EXPRESS": 0.2,
+        "PRIME_EXPRESS": 0.1
+    }
+    
     # Generate a random order event
     def generate_event():
 
@@ -44,29 +72,28 @@ def stream_events():
             "event_type": random.choice(EVENT_TYPES),
             "order_id": f"ORD-{fake.random_int(min=999, max=9_999_999)}",
             "customer_id": f"CUST-{fake.random_int(min=100, max=9999)}",
-            "customer_segment": random.choice(customer_segments),
+            "customer_segment": random.choices(customer_segments, weights=[weighted_customer_segments[segment] for segment in customer_segments])[0],
 
             "product_id": f"PROD-{fake.random_int(min=10, max=9_999_999)}",
             "product_name": fake.word().title(),
 
-            "category": random.choice(categories),
+            "category": random.choices(categories, weights=[weighted_categories[c] for c in categories])[0],
             "quantity": quantity,
             "unit_price": unit_price,
             "discount": discount,
 
-            "payment_method": random.choice(payment_methods),
-            "shipping_type": random.choice(shipping_types),
+            "payment_method": random.choices(payment_methods, weights=[weighted_payment_methods[method] for method in payment_methods])[0],
+            "shipping_type": random.choices(shipping_types, weights=[weighted_shipping_types[stype] for stype in shipping_types])[0],
 
             "region": fake.state_abbr(),
 
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "event_timestamp": datetime.now(timezone.utc).isoformat()
         }
 
     print("Starting Kafka event stream (1 event/sec)...")
 
-    max_events = 20000
 
-    for _ in range(max_events):
+    for _ in range(MAX_EVENTS):
 
         event = generate_event()
 
@@ -76,7 +103,7 @@ def stream_events():
             value=event
         )
 
-        print(f"Sent {event['event_type']} | {event['event_id']}")
+        print(event)
     
     print("Stopping producer...")
     producer.flush()
