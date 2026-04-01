@@ -39,8 +39,8 @@ def df_etl():
         df_orders = df_orders.repartition(10)
         
         # Hourly Sales Summary
-        df_hourly = df_orders.withColumn("hour", hour(col("timestamp"))) \
-            .withColumn("date", date_format(col("timestamp"), "yyyy-MM-dd")) \
+        df_hourly = df_orders.withColumn("hour", hour(col("event_timestamp"))) \
+            .withColumn("date", date_format(col("event_timestamp"), "yyyy-MM-dd")) \
             .groupBy("date", "hour") \
             .agg(
                 count("order_id").alias("total_orders"),
