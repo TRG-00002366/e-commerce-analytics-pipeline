@@ -46,7 +46,7 @@ with DAG(
 ) as dag:
 
     start = EmptyOperator(task_id="start")
-    
+
     task_create_topic = PythonOperator(
         task_id="create_topic",
         python_callable=create_topic
@@ -128,9 +128,12 @@ with DAG(
         task_id="merge_into_silver_target",
         sql="""
             MERGE INTO SILVER.cleaned_orders AS target
-            USING SILVER.stg_cleaned_orders AS source
-            ON target.order_id = source.order_id
-            WHEN MATCHED AND source.event_timestamp > target.event_timestamp THEN
+                USING (
+                SELECT * FROM SILVER.stg_cleaned_orders
+                QUALIFY ROW_NUMBER() OVER (PARTITION BY order_id ORDER BY event_timestamp DESC) = 1
+                ) AS source
+                ON target.order_id = source.order_id
+                WHEN MATCHED AND source.event_timestamp > target.event_timestamp THEN
                 UPDATE SET
                     event_id = source.event_id,
                     event_type = source.event_type,
@@ -182,7 +185,7 @@ with DAG(
                     source.event_timestamp
                 );
         """,
-        snowflake_conn_id="my_snowflake_conn"
+        snowflake_conn_id="my_snowflake_conn",
     )
 
     end = EmptyOperator(task_id="end")
@@ -193,7 +196,6 @@ with DAG(
 
     # start >> task_create_topic >> task_run_producer >> task_run_consumer >> end
 
-    
     # Kafka stage
     start >> task_create_topic >> task_run_producer >> task_run_consumer
 
