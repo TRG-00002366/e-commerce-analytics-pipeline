@@ -30,7 +30,7 @@ order_schema = StructType([
     StructField("region", StringType(), True),
     StructField("event_timestamp", StringType(), True)
 ])
-CONSUMER_WAIT_TIME = 110
+CONSUMER_WAIT_TIME = 20
 
 def main():
     # Spark Session (Docker Spark cluster)
