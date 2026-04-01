@@ -8,7 +8,7 @@ logger = get_logger(__name__)
 def deduplicate_events(
     df: DataFrame,
     event_id_col: str = "event_id",
-    timestamp_col: str = "timestamp",
+    timestamp_col: str = "event_timestamp",
     watermark_delay: str = "10 minutes"
 ):
 
