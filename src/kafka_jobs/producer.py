@@ -64,7 +64,7 @@ def stream_events():
 
     print("Starting Kafka event stream (1 event/sec)...")
 
-    max_events = 10
+    max_events = 20000
 
     for _ in range(max_events):
 
