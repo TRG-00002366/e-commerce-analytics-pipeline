@@ -1,4 +1,3 @@
-
 version: 2
 
 sources:
@@ -7,6 +6,10 @@ sources:
     schema: silver
     tables:
       - name: cleaned_orders
+        columns:
+          - name: event_id
+            tests:
+              - not_null
 
 models:
   - name: dim_customers
@@ -16,9 +19,21 @@ models:
           - not_null
           - unique
 
+      - name: customer_segment
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['REGULAR', 'PRIME', 'VIP']
+
   - name: dim_products
     columns:
       - name: product_id
+        tests:
+          - not_null
+          - unique
+
+      - name: category
         tests:
           - not_null
 
@@ -27,15 +42,30 @@ models:
       - name: order_id
         tests:
           - not_null
-  
+
       - name: customer_id
         tests:
+          - not_null
           - relationships:
-              to: ref('dim_customers')
-              field: customer_id
+              arguments:
+                to: ref('dim_customers')
+                field: customer_id
 
       - name: product_id
         tests:
+          - not_null
           - relationships:
-              to: ref('dim_products')
-              field: product_id
+              arguments:
+                to: ref('dim_products')
+                field: product_id
+
+      - name: event_type
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['ORDER_CREATED']
+
+      - name: revenue
+        tests:
+          - not_null
