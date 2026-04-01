@@ -19,29 +19,41 @@ services:
       - fishing_network
 
   spark-master:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.spark
     container_name: spark-master
     ports:
       - "7077:7077"
       - "8081:8080"
     environment:
-      SPARK_MODE: master
+      - SPARK_MODE=master
+    volumes:
+      - ./src:/opt/spark-apps
+      - ./data:/opt/data
     networks:
       - fishing_network
 
   spark-worker:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.spark
     container_name: spark-worker
     depends_on:
       - spark-master
     environment:
-      SPARK_MODE: worker
-      SPARK_MASTER_URL: spark://spark-master:7077
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+    volumes:
+      - ./src:/opt/spark-apps
+      - ./data:/opt/data
     networks:
       - fishing_network
 
   airflow:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: airflow_ecommerce_analytics
     depends_on:
       - kafka
@@ -55,11 +67,15 @@ services:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: "sqlite:////opt/airflow/airflow.db"
       SPARK_MASTER_URL: "spark://spark-master:7077"
       KAFKA_SERVERS: "kafka:29092"
+      PYTHONPATH: "/opt/project/src"
     volumes:
       - ./src/airflow/dags:/opt/airflow/dags
       - ./:/opt/project
+      - ./data:/opt/data
     command: >
       bash -c "
+      mkdir -p /opt/data/checkpoint /opt/data/bronze /opt/data/silver &&
+      chmod -R 777 /opt/data &&
       airflow db migrate &&
       airflow users create --username admin --password admin --firstname admin --lastname user --role Admin --email admin@test.com || true &&
       airflow webserver & airflow scheduler

@@ -1,8 +1,9 @@
+# Use the official Spark image as the base
 FROM apache/spark:3.5.0
 
 USER root
 
-# Install Python dependencies required for the pipeline
-RUN pip install --no-cache-dir kafka-python faker
+# Install Python dependencies required by your scripts
+RUN pip install --no-cache-dir kafka-python-ng faker lz4
 
 USER spark
