@@ -59,15 +59,15 @@ def main():
         logger.info(f"Processing batch {batch_id}, records: {count}")
 
         # Bronze 
-        df.write.mode("append") \
-            .partitionBy("date", "event_type") \
+        df.coalesce(1) \
+            .write.mode("append") \
             .parquet(bronze_path)
 
         # Silver
         df_clean = deduplicate_events(df)
 
-        df_clean.write.mode("append") \
-            .partitionBy("date", "event_type") \
+        df_clean.coalesce(1) \
+            .write.mode("append") \
             .parquet(silver_path)
 
     # Kafka Source
@@ -89,8 +89,8 @@ def main():
 
     # Add timestamp + partition column
     df_events = df_events_raw \
-        .withColumn("timestamp", to_timestamp(col("timestamp"))) \
-        .withColumn("date", to_date(col("timestamp")))
+        .withColumn("event_timestamp", to_timestamp(col("event_timestamp"))) \
+        .withColumn("date", to_date(col("event_timestamp")))
 
     # Streaming Query
     query = df_events.writeStream \
