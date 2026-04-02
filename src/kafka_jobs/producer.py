@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from kafka import KafkaProducer
 from faker import Faker
 
-MAX_EVENTS = 200000
+MAX_EVENTS = 2000
 
 def stream_events():
 
@@ -28,6 +28,13 @@ def stream_events():
         "PAYMENT_FAILED"
     ]
 
+    EVENT_TYPES_WEIGHTED = {
+        "ORDER_CREATED": 0.5,
+        "ORDER_CANCELLED": 0.1,
+        "ORDER_RETURNED": 0.1,
+        "PAYMENT_COMPLETED": 0.25,
+        "PAYMENT_FAILED": 0.05
+    }
     customer_segments = ["REGULAR", "PRIME", "VIP"]
     categories = ["Electronics", "Books", "Clothing", "Home", "Sports"]
     payment_methods = ["CREDIT_CARD", "DEBIT_CARD", "PAYPAL", "APPLE_PAY"]
@@ -69,7 +76,7 @@ def stream_events():
 
         return {
             "event_id": f"EVT-{fake.unique.random_int(min=90000, max=9_999_999)}",
-            "event_type": random.choice(EVENT_TYPES),
+            "event_type": random.choice(EVENT_TYPES, weights=[EVENT_TYPES_WEIGHTED[et] for et in EVENT_TYPES])[0],
             "order_id": f"ORD-{fake.random_int(min=999, max=9_999_999)}",
             "customer_id": f"CUST-{fake.random_int(min=100, max=9999)}",
             "customer_segment": random.choices(customer_segments, weights=[weighted_customer_segments[segment] for segment in customer_segments])[0],
