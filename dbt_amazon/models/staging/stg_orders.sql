@@ -17,6 +17,7 @@ SELECT
     shipping_type,
     region,
 
-    event_timestamp
+    event_timestamp,
+    hour
 
 FROM {{ source('silver', 'cleaned_orders') }}

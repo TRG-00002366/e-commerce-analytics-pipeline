@@ -11,7 +11,8 @@ SELECT
 
     (quantity * unit_price - discount) AS revenue,
 
-    event_timestamp
+    event_timestamp,
+    hour
 
 FROM {{ ref('stg_orders') }}
 WHERE event_type = 'ORDER_CREATED'
