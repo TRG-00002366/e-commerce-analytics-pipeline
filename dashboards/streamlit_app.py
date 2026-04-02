@@ -4,19 +4,14 @@ import numpy as np
 import snowflake.connector
 from datetime import datetime, timedelta
 from streamlit_autorefresh import st_autorefresh
-
-# ----------------------
 # Page config
-# ----------------------
 st.set_page_config(
     page_title="Amazon Analytics Dashboard",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# ----------------------
 # Snowflake connection
-# ----------------------
 @st.cache_resource(ttl=300)
 def get_snowflake_conn():
     return snowflake.connector.connect(
@@ -31,16 +26,12 @@ def get_snowflake_conn():
 
 conn = get_snowflake_conn()
 
-# ----------------------
 # Query helper
-# ----------------------
 @st.cache_data(ttl=600)
 def run_query(query: str) -> pd.DataFrame:
     return pd.read_sql(query, conn)
 
-# ----------------------
 # Sidebar filters
-# ----------------------
 st.sidebar.header("Filters")
 
 # Date range filter
@@ -58,9 +49,7 @@ metrics_options = [
 ]
 selected_metric = st.sidebar.selectbox("Select Metric", metrics_options)
 
-# ----------------------
 # Filter helper for dbt gold tables
-# ----------------------
 def apply_filters(df, date_col=None):
     """Apply sidebar date filter to dataframe, only if date_col exists."""
     if date_col and date_col in df.columns:
@@ -68,9 +57,8 @@ def apply_filters(df, date_col=None):
         df = df[(df[date_col] >= pd.to_datetime(start_date)) & 
                 (df[date_col] <= pd.to_datetime(end_date))]
     return df
-# ----------------------
+
 # Main dashboard
-# ----------------------
 st.title("Amazon Analytics Dashboard")
 st.subheader(f"Data from {start_date} to {end_date}")
 
@@ -108,6 +96,10 @@ elif selected_metric == "Top Products":
     categories = df['CATEGORY'].unique().tolist()
     selected_category = st.selectbox("Category", categories)
     st.markdown(f"### Top 10 Products in {selected_category}")
+    filtered = df[df['CATEGORY'] == selected_category]
+    st.bar_chart(
+        filtered.set_index("PRODUCT_NAME")["TOTAL_QTY"]
+    )
     st.table(df[df['CATEGORY'] == selected_category][["PRODUCT_NAME", "TOTAL_QTY", "RANK"]])
 
 elif selected_metric == "Regional Revenue":
@@ -120,12 +112,18 @@ elif selected_metric == "Customer Segments":
     df = run_query("SELECT * FROM customer_segment_kpis ORDER BY REVENUE DESC")
     df = apply_filters(df, date_col='DATE')
     st.markdown("### Customer Segment KPIs")
+    st.bar_chart(
+        df.set_index("CUSTOMER_SEGMENT")["REVENUE"]
+    )
     st.dataframe(df)
 
 elif selected_metric == "Status Metrics":
     df = run_query("SELECT * FROM status_metrics ORDER BY CATEGORY")
     df = apply_filters(df, date_col='DATE')
     st.markdown("### Return & Cancellation Rates by Category")
+    st.bar_chart(
+        df.set_index("CATEGORY")[["RETURN_RATE", "CANCELLATION_RATE"]]
+    )
     st.dataframe(df)
 
 st.markdown("---")
