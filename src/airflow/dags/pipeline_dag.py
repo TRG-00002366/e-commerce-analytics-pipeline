@@ -135,7 +135,7 @@ with DAG(
             MERGE INTO SILVER.cleaned_orders AS target
             USING SILVER.stg_cleaned_orders AS source
             ON target.event_id = source.event_id
-            WHEN MATCHED AND source.event_timestamp > target.event_timestamp THEN
+            WHEN MATCHED AND source.event_timestamp >= target.event_timestamp THEN
                 UPDATE SET
                     event_type = source.event_type,
                     order_id = source.order_id,
@@ -150,7 +150,8 @@ with DAG(
                     payment_method = source.payment_method,
                     shipping_type = source.shipping_type,
                     region = source.region,
-                    event_timestamp = source.event_timestamp
+                    event_timestamp = source.event_timestamp,
+                    hour = source.hour
             WHEN NOT MATCHED THEN
                 INSERT (
                     event_id,
@@ -167,7 +168,8 @@ with DAG(
                     payment_method,
                     shipping_type,
                     region,
-                    event_timestamp
+                    event_timestamp,
+                    hour
                 )
                 VALUES (
                     source.event_id,
@@ -184,7 +186,8 @@ with DAG(
                     source.payment_method,
                     source.shipping_type,
                     source.region,
-                    source.event_timestamp
+                    source.event_timestamp,
+                    source.hour
                 );
         """,
         snowflake_conn_id="my_snowflake_conn"
