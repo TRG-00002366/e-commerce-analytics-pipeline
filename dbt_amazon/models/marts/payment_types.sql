@@ -2,7 +2,7 @@
 
 SELECT
     event_type,
-
+    payment_method,
     COUNT(*) AS payment_count
 
 FROM {{ ref('stg_orders') }}
