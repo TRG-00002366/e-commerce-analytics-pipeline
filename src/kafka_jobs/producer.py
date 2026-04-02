@@ -89,7 +89,7 @@ def stream_events():
 
         return {
             "event_id": f"EVT-{fake.unique.random_int(min=90000, max=9_999_999)}",
-            "event_type": random.choice(EVENT_TYPES, weights=[EVENT_TYPES_WEIGHTED[et] for et in EVENT_TYPES])[0],
+            "event_type": random.choices(EVENT_TYPES, weights=[EVENT_TYPES_WEIGHTED[et] for et in EVENT_TYPES])[0],
             "order_id": f"ORD-{fake.random_int(min=999, max=9_999_999)}",
             "customer_id": f"CUST-{fake.random_int(min=100, max=9999)}",
             "customer_segment": random.choices(customer_segments, weights=[weighted_customer_segments[segment] for segment in customer_segments])[0],
