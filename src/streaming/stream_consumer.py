@@ -28,7 +28,8 @@ order_schema = StructType([
     StructField("payment_method", StringType(), True),
     StructField("shipping_type", StringType(), True),
     StructField("region", StringType(), True),
-    StructField("event_timestamp", StringType(), True)
+    StructField("event_timestamp", StringType(), True),
+    StructField("hour", IntegerType(), True)
 ])
 CONSUMER_WAIT_TIME = 20
 
@@ -92,8 +93,7 @@ def main():
     print("df_events_raw: ", df_events_raw.schema)
     # Add timestamp + partition column
     df_events = df_events_raw \
-        .withColumn("event_timestamp", to_timestamp(col("event_timestamp"))) \
-        .withColumn("date", to_date(col("event_timestamp")))
+        .withColumn("event_timestamp", to_timestamp(col("event_timestamp")))
 
     # Streaming Query
     query = df_events.writeStream \

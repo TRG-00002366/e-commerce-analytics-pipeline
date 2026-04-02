@@ -2,7 +2,7 @@
 
 SELECT
     CAST(event_timestamp AS DATE) AS date,
-    EXTRACT(HOUR FROM event_timestamp) AS hour,
+    hour,
 
     COUNT(order_id) AS total_orders,
 
