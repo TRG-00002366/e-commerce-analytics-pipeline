@@ -66,6 +66,20 @@ def stream_events():
         quantity = random.randint(1, 99)
         unit_price = round(random.uniform(10, 200), 2)
         discount = round(random.uniform(0, 10), 2)
+        hours = list(range(24))
+
+        weights = []
+        for h in hours:
+            if 8 <= h <= 10:
+                weights.append(3)   # morning peak
+            elif 12 <= h <= 14:
+                weights.append(3)   # lunch peak
+            elif 19 <= h <= 22:
+                weights.append(4)   # evening peak (stronger)
+            else:
+                weights.append(1)   # off-peak
+
+        hour = random.choices(hours, weights=weights, k=1)[0]
 
         return {
             "event_id": f"EVT-{fake.unique.random_int(min=90000, max=9_999_999)}",
@@ -87,11 +101,11 @@ def stream_events():
 
             "region": fake.state_abbr(),
 
-            "event_timestamp": datetime.now(timezone.utc).isoformat()
+            "event_timestamp": datetime.now(timezone.utc).isoformat(),
+            "hour": hour
         }
 
-    print("Starting Kafka event stream (1 event/sec)...")
-
+    print("Starting Kafka event stream...")
 
     for _ in range(MAX_EVENTS):
 
