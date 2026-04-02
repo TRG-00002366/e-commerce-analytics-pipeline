@@ -214,3 +214,5 @@ data/*
 
 # Airflow runtime logs
 logs/*
+
+dashboards/.streamlit/secrets.toml
